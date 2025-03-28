@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: Midterm-NodeJS-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: NodeJS_midterm_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - Midterm-NodeJS-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Node.js API
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: midterm-NodeJS-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: NodeJS_midterm_db
+      PORT: 5000
+      JWT_SECRET: 96555b9b-4a7e-43e4-87c3-93a2f0548264
+      NODE_ENV: production
+    networks:
+      - Midterm-NodeJS-network
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: midterm-Nodejs-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - Midterm-NodeJS-network
+
+networks:
+  Midterm-NodeJS-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
