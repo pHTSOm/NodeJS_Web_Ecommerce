@@ -38,43 +38,11 @@ services:
       retries: 5
 
   # Backend Node.js API
-  backend_product:
+  backend:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: midterm-NodeJS-backend
-    restart: always
-    ports:
-      - "5001:5001"  # Only for direct debugging access
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      DB_HOST: mysql
-      DB_USER: user
-      DB_PASSWORD: password
-      DB_NAME: NodeJS_midterm_db
-      JWT_SECRET: 96555b9b-4a7e-43e4-87c3-93a2f0548264
-      NODE_ENV: production
-      REDIS_HOST: redis  
-      REDIS_PORT: 6379
-      LOG_LEVEL: debug  # For better troubleshooting
-    volumes:
-      - ./backend:/app  # Use bind mount for easier development
-      - ./backend/public/uploads:/app/public/uploads
-    networks:
-      - Midterm-NodeJS-network
-    # Remove replicas for easier debugging 
-    # deploy:
-    #   replicas: 3
-
-  backend_auth:
-    build: 
-      context: ./authentication-service
-      dockerfile: Dockerfile
-    container_name: midterm-NodeJS-backend-authentication
     restart: always
     ports:
       - "5000:5000"  # Only for direct debugging access
