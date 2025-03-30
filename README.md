@@ -2,86 +2,87 @@
 521V0006 Nguyen Cao Phi
 522K0012 Nguyen Truong Phat
 
-Required NodeJS version 18
-install all of these library before run the code using npm start:
-npm install
-npm install @reduxjs/toolkit
-npm install react-redux
-npm install react-router-dom
-npm install reactstrap
-npm install framer-motion
-npm install react-toastify
-npm install bootstrap
-npm install react-scripts
-npm install react
 
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Quick Start
 
-## Available Scripts
+The application can be started with a single command using Docker Compose:
+docker compose up -d
 
-In the project directory, you can run:
+This command:
 
-### `npm start`
+Builds all necessary images (if not already built)
+Creates and starts all containers
+Sets up the required network
+Configures database with initial data
+Runs the application
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Once complete, access:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Frontend: http://localhost (port 80)
+Backend API: http://localhost:5000/api
+MySQL database: localhost:3307 (mapped from container port 3306)
 
-### `npm test`
+Default admin login:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Email: admin@gmail.com
+Password: admin123456
 
-### `npm run build`
+# 1. Building Images Manually 
+# Build backend image
+docker build -t ecommerce-backend ./backend
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+# Build frontend image
+docker build -t ecommerce-frontend ./frontend
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# 2. Running Individual Containers
+# Run MySQL container
+docker run -d --name mysql-container \
+  -e MYSQL_ROOT_PASSWORD=root_password \
+  -e MYSQL_DATABASE=NodeJS_midterm_db \
+  -e MYSQL_USER=user \
+  -e MYSQL_PASSWORD=password \
+  -p 3307:3306 \
+  -v mysql_data:/var/lib/mysql \
+  mysql:8.0
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# Run backend container (after MySQL is running)
+docker run -d --name backend-container \
+  -e DB_HOST=mysql-container \
+  -e DB_USER=user \
+  -e DB_PASSWORD=password \
+  -e DB_NAME=NodeJS_midterm_db \
+  -p 5000:5000 \
+  --link mysql-container \
+  ecommerce-backend
 
-### `npm run eject`
+# Run frontend container
+docker run -d --name frontend-container \
+  -p 80:80 \
+  --link backend-container \
+  ecommerce-frontend
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+# 3. Docker Compose Commands
+# Start all services in the background
+docker compose up -d
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# View running containers
+docker compose ps
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# View logs from all containers
+docker compose logs
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# View logs from a specific service
+docker compose logs backend
 
-## Learn More
+# Stop all containers without removing them
+docker compose stop
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Stop and remove all containers, networks
+docker compose down
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+# Stop and remove all containers, networks, and volumes (this will delete database data)
+docker compose down -v
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+# Rebuild images and start containers
+docker compose up -d --build
