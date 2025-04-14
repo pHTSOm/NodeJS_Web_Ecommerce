@@ -4,7 +4,7 @@ services:
   # MySQL Database
   mysql:
     image: mysql:8.0
-    container_name: Midterm-NodeJS-mysql
+    container_name: Ecommerce-Project-mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root_password
@@ -16,7 +16,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - Midterm-NodeJS-network
+      - Ecommerce-Project-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -25,12 +25,12 @@ services:
 
   redis:
     image: redis:latest
-    container_name: Midterm-NodeJS-redis
+    container_name: Ecommerce-Project-redis
     restart: always
     ports:
       - "6379:6379"  # Default Redis port
     networks:
-      - Midterm-NodeJS-network
+      - Ecommerce-Project-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -42,7 +42,7 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
-    container_name: midterm-NodeJS-backend
+    container_name: Ecommerce-Project-backend
     restart: always
     ports:
       - "5000:5000"  # Only for direct debugging access
@@ -65,7 +65,7 @@ services:
       - ./backend:/app  # Use bind mount for easier development
       - ./backend/public/uploads:/app/public/uploads
     networks:
-      - Midterm-NodeJS-network
+      - Ecommerce-Project-network
     # Remove replicas for easier debugging 
     # deploy:
     #   replicas: 3
@@ -74,7 +74,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: midterm-NodeJS-worker
+    container_name: Ecommerce-Project-worker
     restart: always
     depends_on:
       redis:
@@ -85,14 +85,14 @@ services:
       LOG_LEVEL: debug
     command: ["node", "workers/welcomeWorker.js"]
     networks:
-      - Midterm-NodeJS-network
+      - Ecommerce-Project-network
 
   # Frontend React App
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: midterm-Nodejs-frontend
+    container_name: Ecommerce-Project-frontend
     restart: always
     # No direct port exposure - will be accessed through nginx
     depends_on:
@@ -100,12 +100,12 @@ services:
     environment:
       - REACT_APP_API_URL=/api  # Use relative URL for API calls
     networks:
-      - Midterm-NodeJS-network
+      -Ecommerce-Project-network
 
   # Nginx as the main entry point
   nginx:
     image: nginx:latest
-    container_name: midterm-NodeJS-nginx
+    container_name: Ecommerce-Project-nginx
     ports:
       - "80:80"  # Main application port
     volumes:
@@ -114,10 +114,10 @@ services:
       - backend
       - frontend
     networks:
-      - Midterm-NodeJS-network
+      -Ecommerce-Project-network
 
 networks:
-  Midterm-NodeJS-network:
+ Ecommerce-Project-network:
     driver: bridge
 
 volumes:

@@ -28,8 +28,28 @@ const Product = sequelize.define('Product', {
         allowNull: false
     },
     imgUrl:{
+        type:DataTypes.JSON,
+        allowNull: true
+    },
+    variantData:{
         type:DataTypes.STRING,
         allowNull: true
+    },
+    tags:{
+        type:DataTypes.STRING,
+        allowNull: true
+    },
+    avgRating:{
+        type:DataTypes.FLOAT,
+        defaultValue: 0
+    },
+    salesCount:{
+        type:DataTypes.INTEGER,
+        defaultValue: 0
+    },
+    isNew:{
+        type:DataTypes.BOOLEAN,
+        defaultValue: false
     }
 });
 
