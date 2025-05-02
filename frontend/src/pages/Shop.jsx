@@ -243,7 +243,20 @@ const Shop = () => {
                     value={sortOption} 
                     onChange={(e) => {
                       setSortOption(e.target.value);
-                      fetchProducts(1, { sort: e.target.value });
+                      const sortValue = e.target.value;
+                      const filterParams = {
+                        category: selectedCategory,
+                        brand: selectedBrand,
+                        search: searchTerm,
+                        minPrice: minPrice,
+                        maxPrice: maxPrice,
+                        sort: sortValue
+                      };
+                      const cleanParams = Object.fromEntries(
+                        Object.entries(filterParams).filter(([_, v]) => v !== "")
+                      );
+                      // Fetch products with the current filters and the new sort option
+                      fetchProducts(1, cleanParams);
                     }}
                   >
                     <option value="">Default Sorting</option>
