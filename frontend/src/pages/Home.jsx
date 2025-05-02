@@ -1,63 +1,122 @@
 import React, { useState, useEffect } from "react";
-
 import { motion } from "framer-motion";
-
 import Helmet from "../components/Helmet/Helmet";
 import "../styles/home.css";
-
-import { Container, Row, Col } from "reactstrap";
-import heroImg from "../assets/images/console-01.png";
+import { Container, Row, Col, Spinner } from "reactstrap";
+import heroImg from "../assets/images/hero-pc.png";
 import { Link } from "react-router-dom";
-
 import Services from "../services/services";
 import ProductsList from "../components/UI/ProductsList";
-
 import Clock from "../components/UI/Clock";
-
 import counterImg from "../assets/images/counter-timer-img.png";
+import axios from "axios";
 
-import useGetData from "../custom-hooks/useGetData";
+// Custom CSS for the view all links
+const viewAllLinkStyle = {
+  color: "#0a1d37",
+  fontWeight: "500",
+  textDecoration: "none",
+  display: "inline-block",
+  transition: "all 0.3s ease"
+};
 
 const Home = () => {
-  const { data: products, loading } = useGetData("products");
-
-  const [trendingProducts, setTrendingProducts] = useState(products);
-  const [bestSalesProducts, setBestSalesProducts] = useState(products);
-  const [mobileProducts, setMobileProducts] = useState([]);
-  const [wirelessProducts, setWirelessProducts] = useState([]);
-  const [popularProducts, setPopularProducts] = useState([]);
+  const [newProducts, setNewProducts] = useState([]);
+  const [bestSellerProducts, setBestSellerProducts] = useState([]);
+  const [cpuProducts, setCpuProducts] = useState([]);
+  const [gpuProducts, setGpuProducts] = useState([]);
+  const [laptopProducts, setLaptopProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const year = new Date().getFullYear();
 
   useEffect(() => {
-    console.log("All products:", products);
-    console.log("Number of products:", products.length);
-    const filteredTrendingProducts = products.filter(
-      (item) => item.category === "game"
-    );
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log("Attempting to fetch products from API...");
+        const response = await axios.get('http://localhost:5000/api/products', {
+          timeout: 10000 // Add timeout to prevent hanging requests
+        });
+        
+        console.log("API Response:", response);
+        
+        if (response.data && response.data.success) {
+          const allProducts = response.data.products || [];
+          
+          // Filter products by category and flags
+          const newProds = allProducts.filter(product => product.isNew === true);
+          const bestProds = allProducts.filter(product => product.isBestSeller === true);
+          const cpuProds = allProducts.filter(product => product.category === 'CPU');
+          const gpuProds = allProducts.filter(product => product.category === 'GPU');
+          const laptopProds = allProducts.filter(product => product.category === 'Laptop');
+          
+          setNewProducts(newProds.slice(0, 4));
+          setBestSellerProducts(bestProds.slice(0, 4));
+          setCpuProducts(cpuProds.slice(0, 4));
+          setGpuProducts(gpuProds.slice(0, 4));
+          setLaptopProducts(laptopProds.slice(0, 4));
+        } else {
+          setError("Failed to fetch products: Invalid response format");
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        
+        // More helpful error message based on the error type
+        if (error.code === 'ECONNREFUSED') {
+          setError("Cannot connect to the server. Make sure the backend server is running.");
+        } else if (error.response) {
+          setError(`Server error: ${error.response.data?.message || error.response.status}`);
+        } else if (error.request) {
+          setError("Network error. Please check your connection.");
+        } else {
+          setError(`Error: ${error.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchProducts();
+  }, []);
 
-    const filteredBestSalesProducts = products.filter(
-      (item) => item.category === "console"
-    );
-
-    const filteredMobileProducts = products.filter(
-      (item) => item.category === "mobile"
-    );
-
-    const filteredWirelessProducts = products.filter(
-      (item) => item.category === "wireless"
-    );
-
-    const filteredPopularProducts = products.filter(
-      (item) => item.category === "watch"
-    );
-
-    setTrendingProducts(filteredTrendingProducts);
-    setBestSalesProducts(filteredBestSalesProducts);
-    setMobileProducts(filteredMobileProducts);
-    setWirelessProducts(filteredWirelessProducts);
-    setPopularProducts(filteredPopularProducts);
-  }, [products]);
+  // Function to render product sections consistently
+  const renderProductSection = (title, products, category, isLight = false) => (
+    <section className={`category__products ${isLight ? 'bg-light' : ''}`}>
+      <Container>
+        <Row>
+          <Col lg="12" className="text-center mb-5">
+            <h2 className="section__title">{title}</h2>
+          </Col>
+          
+          {loading ? (
+            <Col lg="12" className="text-center py-5">
+              <Spinner color="primary" />
+            </Col>
+          ) : error ? (
+            <Col lg="12" className="text-center">
+              <p className="text-danger">{error}</p>
+            </Col>
+          ) : products && products.length > 0 ? (
+            <ProductsList data={products} />
+          ) : (
+            <Col lg="12" className="text-center">
+              <p>No products found in this category</p>
+            </Col>
+          )}
+          
+          <Col lg="12" className="text-center mt-4">
+            <Link to={`/shop?category=${category}`} className="view-all-link">
+              View All {title} <i className="ri-arrow-right-line"></i>
+            </Link>
+          </Col>
+        </Row>
+      </Container>
+    </section>
+  );
 
   return (
     <Helmet title={"Home"}>
@@ -66,13 +125,11 @@ const Home = () => {
           <Row>
             <Col lg="6" md="6">
               <div className="hero__content">
-                <p className="hero__subtitle">Trending product in {year}</p>
-                <h2>Increase The Enjoyment Of Your Free Time.</h2>
+                <p className="hero__subtitle">High-Performance Computer Parts {year}</p>
+                <h2>Build Your Dream PC With Premium Components</h2>
                 <p>
-                  Lorem ipsum dolor sit amet consectetur, adipisicing elit. Odio
-                  quisquam asperiores eos unde voluptate dolorem quia quod ea
-                  modi. Quas ducimus officiis blanditiis. Eius alias quas,
-                  tempora iusto tenetur culpa?
+                  Find the latest and most powerful computer components for building or upgrading your PC.
+                  We provide comprehensive computer solutions, including high-end CPUs, graphics cards, storage, and peripherals.
                 </p>
 
                 <motion.button whileTap={{ scale: 1.2 }} className="buy__btn">
@@ -82,51 +139,90 @@ const Home = () => {
             </Col>
 
             <Col lg="6" md="6">
-              <div className="hero__img"></div>
-              <img src={heroImg} alt="" />
+              <div className="hero__img">
+                <img src={heroImg} alt="Computer Components" />
+              </div>
             </Col>
           </Row>
         </Container>
       </section>
+      
       <Services />
+      
+      {/* New Products Section */}
       <section className="trending__products">
         <Container>
           <Row>
             <Col lg="12" className="text-center">
-              <h2 className="section__title">Trending Products</h2>
+              <h2 className="section__title">New Products</h2>
             </Col>
 
             {loading ? (
-              <h5 className="f w-bold">Loading....</h5>
+              <Col lg="12" className="text-center py-5">
+                <Spinner color="primary" />
+              </Col>
+            ) : error ? (
+              <Col lg="12" className="text-center">
+                <p className="text-danger">{error}</p>
+              </Col>
+            ) : newProducts && newProducts.length > 0 ? (
+              <ProductsList data={newProducts} />
             ) : (
-              <ProductsList data={trendingProducts} />
+              <Col lg="12" className="text-center">
+                <p>No new products found</p>
+              </Col>
             )}
+
+            <Col lg="12" className="text-center mt-4">
+              <Link to="/shop?isNew=true" className="view-all-link">
+                View All New Products <i className="ri-arrow-right-line"></i>
+              </Link>
+            </Col>
           </Row>
         </Container>
       </section>
 
+      {/* Best Sellers Section */}
       <section className="best__sales">
         <Container>
           <Row>
             <Col lg="12" className="text-center">
-              <h2 className="section__title">Best Sales</h2>
+              <h2 className="section__title">Best Sellers</h2>
             </Col>
+            
             {loading ? (
-              <h5 className="f w-bold">Loading....</h5>
+              <Col lg="12" className="text-center py-5">
+                <Spinner color="primary" />
+              </Col>
+            ) : error ? (
+              <Col lg="12" className="text-center">
+                <p className="text-danger">{error}</p>
+              </Col>
+            ) : bestSellerProducts && bestSellerProducts.length > 0 ? (
+              <ProductsList data={bestSellerProducts} />
             ) : (
-              <ProductsList data={bestSalesProducts} />
+              <Col lg="12" className="text-center">
+                <p>No best sellers found</p>
+              </Col>
             )}
+            
+            <Col lg="12" className="text-center mt-4">
+              <Link to="/shop?isBestSeller=true" className="view-all-link">
+                View All Best Sellers <i className="ri-arrow-right-line"></i>
+              </Link>
+            </Col>
           </Row>
         </Container>
       </section>
 
+      {/* Timer section */}
       <section className="timer__count">
         <Container>
           <Row>
-            <Col lg="6" md='12 className="count__down-col'>
+            <Col lg="6" md='12' className="count__down-col">
               <div className="clock__top-content">
                 <h4 className="text-white fs-6 mb-2">Limited Offer</h4>
-                <h3 className="text-white fs-5 mb-3">Quality Gaming PC</h3>
+                <h3 className="text-white fs-5 mb-3">High-Performance Gaming PC</h3>
               </div>
               <Clock />
 
@@ -139,46 +235,16 @@ const Home = () => {
             </Col>
 
             <Col lg="6" md="12" className="text-end counter__img">
-              <img src={counterImg} alt="" />
+              <img src={counterImg} alt="Gaming PC" />
             </Col>
           </Row>
         </Container>
       </section>
 
-      <section className="new__arrivals">
-        <Container>
-          <Row>
-            <Col lg="12" className="text-center mb-5">
-              <h2 className="section__title">New Arrivals</h2>
-            </Col>
-            {loading ? (
-              <h5 className="f w-bold">Loading....</h5>
-            ) : (
-              <ProductsList data={mobileProducts} />
-            )}
-            {loading ? (
-              <h5 className="f w-bold">Loading....</h5>
-            ) : (
-              <ProductsList data={wirelessProducts} />
-            )}
-          </Row>
-        </Container>
-      </section>
-
-      <section className="popular__category">
-        <Container>
-          <Row>
-            <Col lg="12" className="text-center">
-              <h2 className="section__title">Popular in Category</h2>
-            </Col>
-            {loading ? (
-              <h5 className="f w-bold">Loading....</h5>
-            ) : (
-              <ProductsList data={popularProducts} />
-            )}
-          </Row>
-        </Container>
-      </section>
+      {/* Product Categories */}
+      {renderProductSection("Laptops", laptopProducts, "Laptop")}
+      {renderProductSection("Graphics Cards", gpuProducts, "GPU", true)}
+      {renderProductSection("CPUs & Processors", cpuProducts, "CPU")}
     </Helmet>
   );
 };
