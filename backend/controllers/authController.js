@@ -1,7 +1,6 @@
 
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
-const { redisClient, connectRedis } = require('../utils/redis');
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -22,22 +21,8 @@ exports.register = async (req, res) => {
       email,
       password,
       name,
-      // Default role is 'user' as defined in the model
+      
     });
-
-    // Connect to Redis and publish event
-    try {
-      await connectRedis();
-      await redisClient.publish('user:registered', JSON.stringify({
-        userId: user.id,
-        email: user.email,
-        name: user.name
-      }));
-      console.log(`Published user:registered event for ${email}`);
-    } catch (redisError) {
-      // Don't fail the registration if Redis fails
-      console.error('Redis error during registration:', redisError);
-    }
 
     // Return user data with token
     res.status(201).json({

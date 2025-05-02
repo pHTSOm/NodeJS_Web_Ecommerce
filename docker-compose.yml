@@ -23,19 +23,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:latest
-    container_name: Ecommerce-Project-redis
-    restart: always
-    ports:
-      - "6379:6379"  # Default Redis port
-    networks:
-      - Ecommerce-Project-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # Backend Node.js API
   backend:
@@ -49,8 +36,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       DB_HOST: mysql
       DB_USER: user
@@ -58,34 +43,14 @@ services:
       DB_NAME: NodeJS_midterm_db
       JWT_SECRET: 96555b9b-4a7e-43e4-87c3-93a2f0548264
       NODE_ENV: production
-      REDIS_HOST: redis  
-      REDIS_PORT: 6379
       LOG_LEVEL: debug  # For better troubleshooting
     volumes:
       - ./backend:/app  # Use bind mount for easier development
       - ./backend/public/uploads:/app/public/uploads
     networks:
       - Ecommerce-Project-network
-    # Remove replicas for easier debugging 
-    # deploy:
-    #   replicas: 3
-
-  welcome-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: Ecommerce-Project-worker
-    restart: always
-    depends_on:
-      redis:
-        condition: service_healthy
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      LOG_LEVEL: debug
-    command: ["node", "workers/welcomeWorker.js"]
-    networks:
-      - Ecommerce-Project-network
+    deploy:
+      replicas: 2
 
   # Frontend React App
   frontend:

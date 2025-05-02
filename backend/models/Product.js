@@ -27,6 +27,14 @@ const Product = sequelize.define('Product', {
         type:DataTypes.STRING,
         allowNull: false
     },
+    brand:{
+      type:DataTypes.STRING,
+      allowNull: false  
+    },
+    stock:{
+        type:DataTypes.INTEGER,
+        defaultValue: 0
+    },
     imgUrl:{
         type:DataTypes.JSON,
         allowNull: true
@@ -48,6 +56,10 @@ const Product = sequelize.define('Product', {
         defaultValue: 0
     },
     isNew:{
+        type:DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    isBestSeller:{
         type:DataTypes.BOOLEAN,
         defaultValue: false
     }
