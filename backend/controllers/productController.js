@@ -193,6 +193,11 @@ exports.getProductById = async (req, res) => {
 // Get products by category
 exports.getProductsByCategory = async (req, res) => {
   try {
+    console.log('----- getProductsByCategory -----');
+    console.log('Category:', req.params.category);
+    console.log('Query parameters:', req.query);
+
+    console.log(`Fetching products for category: ${req.params.category}`);
     // Pagination 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
@@ -324,7 +329,7 @@ exports.getProductsByCategory = async (req, res) => {
     }
 
     // Fetch products with count
-    const { count, rows: product} = await Product.findAndCountAll({
+    const { count, rows: products} = await Product.findAndCountAll({
       where: {
         category: req.params.category
       },

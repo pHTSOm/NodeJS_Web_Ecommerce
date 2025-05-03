@@ -28,24 +28,47 @@ const Shop = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.has('category')) setSelectedCategory(params.get('category'));
-    if (params.has('brand')) setSelectedBrand(params.get('brand'));
-    if (params.has('search')) setSearchTerm(params.get('search'));
-    if (params.has('minPrice')) setMinPrice(params.get('minPrice'));
-    if (params.has('maxPrice')) setMaxPrice(params.get('maxPrice'));
-    if (params.has('sort')) setSortOption(params.get('sort'));
-    if (params.has('page')) setCurrentPage(parseInt(params.get('page')));
     
-    // Special filters
-    if (params.has('isNew') || params.has('isBestSeller')) {
-      fetchProducts(1, {
-        isNew: params.get('isNew'),
-        isBestSeller: params.get('isBestSeller')
-      });
-    } else {
-      fetchProducts(1);
-    }
-  }, [location.search]); 
+    // Update filter form values
+    const category = params.get('category') || "";
+    const brand = params.get('brand') || "";
+    const search = params.get('search') || "";
+    const min = params.get('minPrice') || "";
+    const max = params.get('maxPrice') || "";
+    const sort = params.get('sort') || "";
+    const page = params.has('page') ? parseInt(params.get('page')) : 1;
+    
+    setSelectedCategory(category);
+    setSelectedBrand(brand);
+    setSearchTerm(search);
+    setMinPrice(min);
+    setMaxPrice(max);
+    setSortOption(sort);
+    setCurrentPage(page);
+    
+    // Build filter parameters object from URL params
+    const filterParams = {
+      category: category,
+      brand: brand,
+      search: search,
+      minPrice: min,
+      maxPrice: max,
+      sort: sort,
+      page: page
+    };
+    
+    // Add special filters
+    if (params.has('isNew')) filterParams.isNew = params.get('isNew');
+    if (params.has('isBestSeller')) filterParams.isBestSeller = params.get('isBestSeller');
+    
+    // Remove empty values
+    const cleanParams = Object.fromEntries(
+      Object.entries(filterParams).filter(([_, v]) => v !== "")
+    );
+    
+    // Always fetch products with the URL parameters
+    fetchProducts(page, cleanParams);
+  }, [location.search]);
 
   
   // Function to fetch available categories
@@ -73,36 +96,54 @@ const Shop = () => {
   };
 
   // Main function to fetch products with filters
-  const fetchProducts = async (page = 1, extraParams = {}) => {
-    setLoading(true);
-    try {
-      // Build query parameters
-      const params = new URLSearchParams();
-      params.append('page', page);
-      params.append('limit', 12); // Products per page
-      
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (selectedBrand) params.append('brand', selectedBrand);
-      if (searchTerm) params.append('search', searchTerm);
-      if (minPrice) params.append('minPrice', minPrice);
-      if (maxPrice) params.append('maxPrice', maxPrice);
-      if (sortOption) params.append('sort', sortOption);
-      
-      // Add extra params (used for isNew, isBestSeller, etc.)
-      Object.entries(extraParams).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
-      
-      const response = await axios.get(`${API_URL}/products?${params.toString()}`);
+const fetchProducts = async (page = 1, filterParams = {}) => {
+  setLoading(true);
+  try {
+    // Build query parameters
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', 12); // Products per page
+    
+    // Add filter parameters (either from form or URL)
+    if (filterParams.category) params.append('category', filterParams.category);
+    else if (selectedCategory) params.append('category', selectedCategory);
+    
+    if (filterParams.brand) params.append('brand', filterParams.brand);
+    else if (selectedBrand) params.append('brand', selectedBrand);
+    
+    if (filterParams.search) params.append('search', filterParams.search);
+    else if (searchTerm) params.append('search', searchTerm);
+    
+    if (filterParams.minPrice) params.append('minPrice', filterParams.minPrice);
+    else if (minPrice) params.append('minPrice', minPrice);
+    
+    if (filterParams.maxPrice) params.append('maxPrice', filterParams.maxPrice);
+    else if (maxPrice) params.append('maxPrice', maxPrice);
+    
+    if (filterParams.sort) params.append('sort', filterParams.sort);
+    else if (sortOption) params.append('sort', sortOption);
+    
+    // Special filters (isNew, isBestSeller)
+    if (filterParams.isNew) params.append('isNew', filterParams.isNew);
+    if (filterParams.isBestSeller) params.append('isBestSeller', filterParams.isBestSeller);
+    
+    console.log("Fetching products with params:", params.toString());
+    
+    const response = await axios.get(`${API_URL}/products?${params.toString()}`);
+    
+    if (response.data && response.data.success) {
       setProducts(response.data.products || []);
       setTotalPages(response.data.pagination?.totalPages || 1);
       setCurrentPage(page);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      setLoading(false);
+    } else {
+      console.error("Invalid response format:", response.data);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching products:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Initial data fetch
   useEffect(() => {

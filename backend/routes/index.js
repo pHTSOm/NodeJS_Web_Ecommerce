@@ -23,7 +23,7 @@ router.get('/products/:id', productController.getProductById);
 
 // Review routes
 router.get('/reviews/:productId', reviewController.getReviewsByProduct);
-router.post('/reviews', protect, reviewController.createReview);
+router.post('/reviews', reviewController.createReview);
 router.delete('/reviews/:id', protect, adminOnly,reviewController.deleteReview);
 
 // Order routes

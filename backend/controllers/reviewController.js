@@ -6,6 +6,7 @@ const { sequelize } = require("../config/db");
 exports.getReviewsByProduct = async (req, res) => {
   try {
     const productId = req.params.productId;
+    console.log(`Fetching reviews for product ID: ${productId}`);
 
     // Pagination
     const page = parseInt(req.query.page) || 1;
@@ -13,7 +14,7 @@ exports.getReviewsByProduct = async (req, res) => {
     const offset = (page - 1) * limit;
 
     // Fetch reviews with count
-    const { count, rows: reivews } = await Review.findAndCountAll({
+    const { count, rows: reviews } = await Review.findAndCountAll({
       where: { productId },
       order: [["createdAt", "DESC"]],
       limit,
@@ -35,10 +36,11 @@ exports.getReviewsByProduct = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching reviews:", error);
+    console.error("Detailed error in getReviewsByProduct:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
+      error: error.message
     });
   }
 };
@@ -59,26 +61,8 @@ exports.createReview = async (req, res) => {
       });
     }
 
-    // If user is authenticated, check if they already reviewed this product
-    if (userId) {
-      const existingReview = await Review.findOne({
-        where: {
-          productId,
-          userId,
-        },
-      });
-
-      if (existingReview) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: "You have already reviewed this product",
-        });
-      }
-    }
-
-    // Validate rating if provided (only allowed for authenticated users)
-    if (rating !== undefined) {
+    // If rating is provided, the user must be authenticated
+    if (rating !== undefined && rating !== null) {
       if (!userId) {
         await transaction.rollback();
         return res.status(401).json({
@@ -86,16 +70,8 @@ exports.createReview = async (req, res) => {
           message: "You must be logged in to rate a product",
         });
       }
-
-      if (rating < 1 || rating > 5) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: "Rating must be between 1 and 5",
-        });
-      }
     }
-
+    
     // Create the review
     const review = await Review.create(
       {
