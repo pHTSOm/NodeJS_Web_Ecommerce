@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Container, Row, Col } from "reactstrap";
-import { useParams } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from "react";
+import { Container, Row, Col, Button, Form, FormGroup, Input, Label, Alert } from "reactstrap";
+import { useParams, Link } from "react-router-dom";
 import Helmet from "../components/Helmet/Helmet";
 import CommonSection from "../components/UI/CommonSection";
 import "../styles/product-details.css";
@@ -9,258 +9,628 @@ import ProductsList from "../components/UI/ProductsList";
 import { useDispatch } from "react-redux";
 import { cartActions } from "../slices/cartSlice";
 import { toast } from "react-toastify";
-import { ProductService } from "../services/api";
+import axios from "axios";
+import { useSelector } from "react-redux";
+
+// Define API base URL
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const ProductDetails = () => {
-  const [product, setProduct] = useState({});
-  const [tab, setTab] = useState("desc");
-  const reviewUser = useRef("");
-  const reviewMsg = useRef("");
-  const dispatch = useDispatch();
-  const [loading, setLoading] = useState(true);
-  const [rating, setRating] = useState(null);
   const { id } = useParams();
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth?.user);
+  
+  const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
-
-  useEffect(() => {
-    const fetchProductDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await ProductService.getProductById(id);
-        if (response.success && response.product) {
-          setProduct(response.product);
-          
-          // Fetch related products after getting the product category
-          if (response.product.category) {
-            const allProductsResponse = await ProductService.getAllProducts();
-            const related = allProductsResponse.products.filter(
-              item => item.category === response.product.category && item.id !== response.product.id
-            ).slice(0, 4); // Just get up to 4 related products
-            setRelatedProducts(related);
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("desc");
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  
+  // Review form state
+  const [reviewName, setReviewName] = useState("");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  
+  // Additional images state
+  const [mainImage, setMainImage] = useState("");
+  const [thumbnails, setThumbnails] = useState([]);
+  
+  // Use useCallback to memoize the fetchProductDetails function
+  const fetchProductDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      console.log(`Fetching product with ID: ${id} from ${API_URL}/products/${id}`);
+      
+      // Fetch product details - use full API URL path
+      const response = await axios.get(`${API_URL}/products/${id}`);
+      console.log("Product API response:", response);
+      
+      if (response.data && response.data.success && response.data.product) {
+        const productData = response.data.product;
+        setProduct(productData);
+        
+        // Process product images
+        let mainImg = '/placeholder.png';
+        let allImages = [];
+        
+        if (productData.imgUrl) {
+          try {
+            // Handle JSON string array
+            if (typeof productData.imgUrl === 'string' && productData.imgUrl.startsWith('[')) {
+              const parsedImages = JSON.parse(productData.imgUrl);
+              if (parsedImages && parsedImages.length > 0) {
+                // Process all images in the array
+                allImages = parsedImages.map(img => {
+                  return img.startsWith('http') ? img : `http://localhost:5000${img}`;
+                });
+                mainImg = allImages[0];
+              }
+            } 
+            // Handle single string URL
+            else if (typeof productData.imgUrl === 'string') {
+              mainImg = productData.imgUrl.startsWith('http') 
+                ? productData.imgUrl 
+                : `http://localhost:5000${productData.imgUrl}`;
+              allImages = [mainImg];
+            }
+            // Handle array directly
+            else if (Array.isArray(productData.imgUrl) && productData.imgUrl.length > 0) {
+              allImages = productData.imgUrl.map(img => {
+                return img.startsWith('http') ? img : `http://localhost:5000${img}`;
+              });
+              mainImg = allImages[0];
+            }
+          } catch (error) {
+            console.error("Error processing product images:", error);
+            mainImg = '/placeholder.png';
+            allImages = [mainImg];
           }
-        } else {
-          toast.error("Product not found");
         }
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching product:", error);
-        toast.error("Failed to load product details");
-        setLoading(false);
+        
+        // Set images
+        setMainImage(mainImg);
+        setThumbnails(allImages);
+        
+        // Fetch related products
+        if (productData.category) {
+          try {
+            console.log(`Fetching related products for category: ${productData.category}`);
+            const relatedResponse = await axios.get(`${API_URL}/products/category/${productData.category}?limit=4`);
+            if (relatedResponse.data && relatedResponse.data.success) {
+              // Filter out the current product
+              const related = (relatedResponse.data.products || []).filter(item => item.id !== parseInt(id));
+              setRelatedProducts(related.slice(0, 4));
+            }
+          } catch (error) {
+            console.error("Error fetching related products:", error);
+            // Silently handle the error
+            setRelatedProducts([]);
+
+            if (error.response) {
+              console.error("Response data:", error.response.data);
+              console.error("Response status:", error.response.status);
+            }
+          }
+        }
+        
+        // Fetch reviews - try both endpoint formats
+        try {
+          console.log(`Fetching reviews for product: ${id}`);
+          // Try first endpoint format
+          try {
+            const reviewsResponse = await axios.get(`${API_URL}/reviews/${id}`);
+            if (reviewsResponse.data && reviewsResponse.data.success) {
+              setReviews(reviewsResponse.data.reviews || []);
+            }
+          } catch (firstError) {
+            console.error("Error with first review endpoint format:", firstError);
+            // Try alternate endpoint format
+            const alternateReviewsResponse = await axios.get(`${API_URL}/reviews/product/${id}`);
+            if (alternateReviewsResponse.data && alternateReviewsResponse.data.success) {
+              setReviews(alternateReviewsResponse.data.reviews || []);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching reviews:", error);
+          // Silently handle the error - don't show error toast for this
+          setReviews([]);
+        }
+      } else {
+        console.error("Product data not found in response:", response.data);
+        toast.error("Product not found or invalid response format");
       }
-    };
-
-    fetchProductDetails();
-  }, [id]);
-
-  const submitHandler = (e) => {
-    e.preventDefault();
-
-    const reviewUserName = reviewUser.current.value;
-    const reviewUserMsg = reviewMsg.current.value;
-
-    const reviewObj = {
-      userName: reviewUserName,
-      text: reviewUserMsg,
-      rating,
-    };
-
-    console.log(reviewObj);
-    toast.success("Review submitted");
-    // Note: You would need to implement a backend endpoint to save reviews
-  };
-
-  const addToCart = () => {
-    dispatch(
-      cartActions.addItem({
-        id: product.id,
-        imgUrl: product.imgUrl,
-        productName: product.productName,
-        price: product.price,
-      })
-    );
-    toast.success("Product added successfully");
-  };
-
+      
+      setLoading(false);
+    } catch (error) {
+      // Improved error handling to diagnose the issue
+      console.error("Error fetching product:", error);
+      if (error.response) {
+        console.error("Response status:", error.response.status);
+        console.error("Response data:", error.response.data);
+        
+        if (error.response.status === 404) {
+          toast.error(`Product with ID ${id} not found. Please check the ID and try again.`);
+        } else {
+          toast.error(`Error ${error.response.status}: ${error.response.data?.message || 'Unknown error'}`);
+        }
+      } else if (error.request) {
+        // Request made but no response received
+        console.error("No response received:", error.request);
+        toast.error("Server not responding. Please check your connection and try again.");
+      } else {
+        // Something else caused the error
+        toast.error(`Error: ${error.message}`);
+      }
+      setLoading(false);
+    }
+  }, [id]); // Only depend on id
+  
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [product]);
-
-  // Handle image URL correctly
-  const imageUrl = product.imgUrl ? 
-    (product.imgUrl.startsWith('http') ? product.imgUrl : `http://localhost:5000${product.imgUrl}`) 
-    : '/placeholder.png';
-
+    // Reset state when product ID changes
+    setProduct(null);
+    setRelatedProducts([]);
+    setReviews([]);
+    setLoading(true);
+    setSelectedVariant(null);
+    setQuantity(1);
+    setReviewName("");
+    setReviewRating(0);
+    setReviewText("");
+    setMainImage("");
+    setThumbnails([]);
+    setReviewError("");
+    
+    fetchProductDetails();
+  }, [id, fetchProductDetails]); // Now include fetchProductDetails as dependency
+  
+  const handleQuantityChange = (operation) => {
+    if (operation === 'increase') {
+      setQuantity(prev => prev + 1);
+    } else if (operation === 'decrease' && quantity > 1) {
+      setQuantity(prev => prev - 1);
+    }
+  };
+  
+  const handleVariantChange = (variant) => {
+    setSelectedVariant(variant);
+  };
+  
+  const calculateTotalPrice = () => {
+    if (!product) return 0;
+    
+    let basePrice = parseFloat(product.price);
+    
+    if (selectedVariant && selectedVariant.additionalPrice) {
+      basePrice += parseFloat(selectedVariant.additionalPrice);
+    }
+    
+    return (basePrice * quantity).toFixed(2);
+  };
+  
+  const addToCart = () => {
+    // Check if product has variants but none is selected
+    if (product.ProductVariants && product.ProductVariants.length > 0 && !selectedVariant) {
+      toast.warning("Please select a variant");
+      return;
+    }
+    
+    // Prepare cart item
+    const cartItem = {
+      id: product.id,
+      productName: product.productName,
+      price: selectedVariant 
+        ? parseFloat(product.price) + parseFloat(selectedVariant.additionalPrice) 
+        : product.price,
+      imgUrl: mainImage,
+      quantity: quantity,
+      variant: selectedVariant ? {
+        id: selectedVariant.id,
+        name: selectedVariant.name
+      } : null
+    };
+    
+    dispatch(cartActions.addItem(cartItem));
+    toast.success("Product added to cart");
+  };
+  
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setReviewError("");
+    
+    // Basic validation
+    if (!reviewName.trim()) {
+      setReviewError("Please enter your name");
+      return;
+    }
+    
+    if (!reviewText.trim()) {
+      setReviewError("Please enter your review");
+      return;
+    }
+    
+    // For rating, only validate if the user tries to use it while not logged in
+    if (!user && reviewRating > 0) {
+      setReviewError("You must be logged in to rate products. Your review will be submitted without a rating.");
+      setReviewRating(0); // Reset rating for guest users
+    }
+    
+    setReviewSubmitting(true);
+    
+    try {
+      const reviewData = {
+        productId: id,
+        userName: reviewName,
+        rating: user ? reviewRating : null, // Only include rating if user is logged in
+        comment: reviewText
+      };
+      
+      console.log("Submitting review:", reviewData);
+      const response = await axios.post(`${API_URL}/reviews`, reviewData);
+      
+      if (response.data && response.data.success) {
+        toast.success("Review submitted successfully");
+        
+        // Reset form
+        setReviewName("");
+        setReviewRating(0);
+        setReviewText("");
+        
+        // Refresh reviews
+        try {
+          // Try both endpoint formats again
+          try {
+            const reviewsResponse = await axios.get(`${API_URL}/reviews/${id}`);
+            if (reviewsResponse.data && reviewsResponse.data.success) {
+              setReviews(reviewsResponse.data.reviews || []);
+            }
+          } catch (firstError) {
+            const alternateReviewsResponse = await axios.get(`${API_URL}/reviews/product/${id}`);
+            if (alternateReviewsResponse.data && alternateReviewsResponse.data.success) {
+              setReviews(alternateReviewsResponse.data.reviews || []);
+            }
+          }
+        } catch (error) {
+          console.error("Error refreshing reviews:", error);
+        }
+        
+        // Refresh product to get updated average rating
+        fetchProductDetails();
+      } else {
+        setReviewError(response.data?.message || "Failed to submit review");
+      }
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      
+      if (error.response) {
+        if (error.response.status === 401) {
+          setReviewError("You must be logged in to rate products. You can still leave a comment without a rating.");
+        } else {
+          setReviewError(error.response?.data?.message || `Error ${error.response.status}: Failed to submit review`);
+        }
+      } else {
+        setReviewError("Network error. Please try again.");
+      }
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+  
+  // Handle thumbnail click for image gallery
+  const handleThumbnailClick = (imageUrl) => {
+    setMainImage(imageUrl);
+  };
+  
+  if (loading) {
+    return (
+      <Helmet title="Loading...">
+        <CommonSection title="Product Details" />
+        <section className="pt-0">
+          <Container>
+            <div className="text-center py-5">
+              <h5>Loading product details...</h5>
+            </div>
+          </Container>
+        </section>
+      </Helmet>
+    );
+  }
+  
+  if (!product) {
+    return (
+      <Helmet title="Product Not Found">
+        <CommonSection title="Product Details" />
+        <section className="pt-0">
+          <Container>
+            <div className="text-center py-5">
+              <h4>Product not found</h4>
+              <p>The product you are looking for does not exist or has been removed.</p>
+              <Link to="/shop" className="back-to-shop-btn">
+                <i className="ri-arrow-left-line"></i> Back to Shop
+              </Link>
+            </div>
+          </Container>
+        </section>
+      </Helmet>
+    );
+  }
+  
   return (
-    <Helmet title={product.productName || "Product Details"}>
-      <CommonSection title={product.productName || "Product Details"} />
-
+    <Helmet title={product.productName}>
+      <CommonSection title={product.productName} />
+      
       <section className="pt-0">
         <Container>
-          {loading ? (
-            <div className="text-center py-5">
-              <h5 className="fw-bold">Loading product details...</h5>
-            </div>
-          ) : (
-            <Row>
-              <Col lg="6">
-                <img 
-                  src={imageUrl} 
-                  alt={product.productName} 
-                  className="product-detail-img"
-                  onError={(e) => { e.target.src = '/placeholder.png'; }}
-                />
-              </Col>
-
-              <Col lg="6">
-                <div className="product__details">
-                  <h2>{product.productName}</h2>
-                  <div className="product__rating d-flex align-items-center gap-5 mb-3">
-                    <div>
-                      <span><i className="ri-star-fill"></i></span>
-                      <span><i className="ri-star-fill"></i></span>
-                      <span><i className="ri-star-fill"></i></span>
-                      <span><i className="ri-star-fill"></i></span>
-                      <span><i className="ri-star-half-fill"></i></span>
+          <Row>
+            <Col lg="6">
+              <div className="product-images">
+                <div className="main-image-container">
+                  <img 
+                    src={mainImage || '/placeholder.png'} 
+                    alt={product.productName} 
+                    className="main-product-image"
+                    onError={(e) => { e.target.src = '/placeholder.png'; }}
+                  />
+                </div>
+                
+                {/* Thumbnails */}
+                <div className="product-thumbnails">
+                  {thumbnails.length > 0 ? (
+                    thumbnails.map((imageUrl, index) => (
+                      <div 
+                        key={index}
+                        className={`thumbnail ${mainImage === imageUrl ? 'active' : ''}`}
+                        onClick={() => handleThumbnailClick(imageUrl)}
+                      >
+                        <img 
+                          src={imageUrl} 
+                          alt={`${product.productName} - view ${index + 1}`}
+                          onError={(e) => { e.target.src = '/placeholder.png'; }}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    // Fallback thumbnails when no images are available
+                    [...Array(4)].map((_, index) => (
+                      <div key={index} className="thumbnail">
+                        <img src="/placeholder.png" alt="Product view" />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </Col>
+            
+            <Col lg="6">
+              <div className="product__details">
+                <h2>{product.productName}</h2>
+                
+                <div className="product__meta d-flex gap-3 align-items-center mb-3">
+                  <span className="product-category badge bg-primary">{product.category}</span>
+                  <span className="product-brand badge bg-secondary">{product.brand}</span>
+                  
+                  {product.isNew && <span className="badge bg-success">New</span>}
+                  {product.isBestSeller && <span className="badge bg-warning">Bestseller</span>}
+                </div>
+                
+                <div className="product__rating d-flex align-items-center gap-2 mb-3">
+                  {[...Array(5)].map((_, index) => (
+                    <span key={index}>
+                      <i className={`ri-star-${index < Math.round(product.avgRating || 0) ? 'fill' : 'line'}`}></i>
+                    </span>
+                  ))}
+                  <span className="rating__text">({product.avgRating ? product.avgRating.toFixed(1) : '0'}) Rating</span>
+                </div>
+                
+                <div className="product__price mb-3">
+                  <h4 className="price-display">
+                    ${calculateTotalPrice()}
+                    
+                    {selectedVariant && (
+                      <span className="base-price">
+                        Base: ${parseFloat(product.price).toFixed(2)}
+                      </span>
+                    )}
+                  </h4>
+                </div>
+                
+                <p className="product__short-desc mb-4">{product.shortDesc}</p>
+                
+                {/* Product Variants */}
+                {product.ProductVariants && product.ProductVariants.length > 0 && (
+                  <div className="product__variants mb-4">
+                    <h5>Available Options</h5>
+                    <div className="variant-options">
+                      {product.ProductVariants.map(variant => (
+                        <div 
+                          key={variant.id}
+                          className={`variant-option ${selectedVariant?.id === variant.id ? 'selected' : ''}`}
+                          onClick={() => handleVariantChange(variant)}
+                        >
+                          <span className="variant-name">{variant.name}</span>
+                          {variant.additionalPrice > 0 && (
+                            <span className="variant-price">+${parseFloat(variant.additionalPrice).toFixed(2)}</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="d-flex align-items-center gap-5">
-                    <span className="product__price">${product.price}</span>
-                    <span>Category: {product.category?.toUpperCase()} </span>
+                )}
+                
+                {/* Quantity Selector */}
+                <div className="quantity__wrapper d-flex align-items-center gap-3 mb-4">
+                  <h6>Quantity:</h6>
+                  <div className="quantity__control d-flex align-items-center">
+                    <button className="qty-btn" onClick={() => handleQuantityChange('decrease')}>
+                      <i className="ri-subtract-line"></i>
+                    </button>
+                    <span className="quantity">{quantity}</span>
+                    <button className="qty-btn" onClick={() => handleQuantityChange('increase')}>
+                      <i className="ri-add-line"></i>
+                    </button>
                   </div>
-                  <p className="mt-3">{product.shortDesc}</p>
-
-                  <motion.button
-                    whileTap={{ scale: 1.2 }}
-                    className="buy__btn"
-                    onClick={addToCart}
-                  >
-                    Add to cart
-                  </motion.button>
                 </div>
-              </Col>
-            </Row>
-          )}
+                
+                {/* Add to Cart Button */}
+                <motion.button
+                  whileTap={{ scale: 1.2 }}
+                  className="buy__btn"
+                  onClick={addToCart}
+                >
+                  Add to Cart
+                </motion.button>
+              </div>
+            </Col>
+          </Row>
         </Container>
       </section>
-
-      {!loading && (
-        <>
-          <section>
-            <Container>
-              <Row>
-                <Col lg="12">
-                  <div className="tab__wrapper d-flex align-items-center gap-5">
-                    <h6
-                      className={`${tab === "desc" ? "active__tab" : ""}`}
-                      onClick={() => setTab("desc")}
-                    >
-                      Description
-                    </h6>
-                    <h6
-                      className={`${tab === "rev" ? "active__tab" : ""}`}
-                      onClick={() => setTab("rev")}
-                    >
-                      Reviews
-                    </h6>
-                  </div>
-
-                  {tab === "desc" ? (
-                    <div className="tab__content mt-5">
-                      <p>{product.description}</p>
-                    </div>
-                  ) : (
-                    <div className="product__review mt-5">
-                      <div className="review__wrapper">
-                        <ul>
-                          {/* Reviews would be displayed here */}
-                          <li className="mb-4">
-                            <h6>No reviews yet</h6>
-                            <p>Be the first to leave a review!</p>
+      
+      <section>
+        <Container>
+          <Row>
+            <Col lg="12">
+              <div className="tab__wrapper d-flex align-items-center gap-5">
+                <h6
+                  className={`${tab === "desc" ? "active__tab" : ""}`}
+                  onClick={() => setTab("desc")}
+                >
+                  Description
+                </h6>
+                <h6
+                  className={`${tab === "rev" ? "active__tab" : ""}`}
+                  onClick={() => setTab("rev")}
+                >
+                  Reviews ({reviews.length})
+                </h6>
+              </div>
+              
+              {tab === "desc" ? (
+                <div className="tab__content mt-5">
+                  <p>{product.description}</p>
+                </div>
+              ) : (
+                <div className="product__review mt-5">
+                  <div className="review__wrapper">
+                    <h4 className="mb-4">Customer Reviews</h4>
+                    
+                    {reviews.length === 0 ? (
+                      <p>No reviews yet. Be the first to review this product!</p>
+                    ) : (
+                      <ul className="review__list">
+                        {reviews.map((review) => (
+                          <li key={review.id} className="review__item mb-4">
+                            <div className="review__header d-flex justify-content-between">
+                              <div>
+                                <h5>{review.userName}</h5>
+                                {review.rating && (
+                                  <div className="review-rating">
+                                    {[...Array(5)].map((_, index) => (
+                                      <span key={index}>
+                                        <i className={`ri-star-${index < review.rating ? 'fill' : 'line'}`}></i>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="review-date">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="review-text mt-2">{review.comment}</p>
                           </li>
-                        </ul>
-
-                        <div className="review__form">
-                          <h4>Leave your experience</h4>
-                          <form action="" onSubmit={submitHandler}>
-                            <div className="form__group">
-                              <input
-                                type="text"
-                                placeholder="Enter name"
-                                ref={reviewUser}
-                                required
-                              />
-                            </div>
-
-                            <div className="form__group d-flex align-items-center gap-5 rating__group">
-                              <motion.span
-                                whileTap={{ scale: 1.2 }}
-                                onClick={() => setRating(1)}
+                        ))}
+                      </ul>
+                    )}
+                    
+                    <div className="review__form mt-5">
+                      <h4 className="mb-3">Write a Review</h4>
+                      
+                      {reviewError && (
+                        <Alert color="danger" className="mb-3">
+                          {reviewError}
+                        </Alert>
+                      )}
+                      
+                      <Form onSubmit={handleReviewSubmit}>
+                        <FormGroup>
+                          <Label for="reviewName">Your Name</Label>
+                          <Input
+                            type="text"
+                            id="reviewName"
+                            placeholder="Enter your name"
+                            value={reviewName}
+                            onChange={(e) => setReviewName(e.target.value)}
+                            required
+                          />
+                        </FormGroup>
+                        
+                        <FormGroup className="rating__group">
+                          <Label>Your Rating {!user && <small>(login required)</small>}</Label>
+                          <div className="rating-stars">
+                            {[...Array(5)].map((_, index) => (
+                              <span
+                                key={index}
+                                onClick={() => user ? setReviewRating(index + 1) : null}
+                                className={index < reviewRating ? 'filled' : ''}
+                                style={{ cursor: user ? 'pointer' : 'not-allowed', opacity: user ? 1 : 0.6 }}
                               >
-                                1<i className="ri-star-fill"></i>
-                              </motion.span>
-                              <motion.span
-                                whileTap={{ scale: 1.2 }}
-                                onClick={() => setRating(2)}
-                              >
-                                2<i className="ri-star-fill"></i>
-                              </motion.span>
-                              <motion.span
-                                whileTap={{ scale: 1.2 }}
-                                onClick={() => setRating(3)}
-                              >
-                                3<i className="ri-star-fill"></i>
-                              </motion.span>
-                              <motion.span
-                                whileTap={{ scale: 1.2 }}
-                                onClick={() => setRating(4)}
-                              >
-                                4<i className="ri-star-fill"></i>
-                              </motion.span>
-                              <motion.span
-                                whileTap={{ scale: 1.2 }}
-                                onClick={() => setRating(5)}
-                              >
-                                5<i className="ri-star-fill"></i>
-                              </motion.span>
-                            </div>
-
-                            <div className="form__group">
-                              <textarea
-                                ref={reviewMsg} // Fixed: using the correct ref
-                                rows={4}
-                                type="text"
-                                placeholder="Review Message..."
-                                required
-                              />
-                            </div>
-
-                            <motion.button
-                              whileTap={{ scale: 1.2 }}
-                              type="submit"
-                              className="buy__btn"
-                            >
-                              Submit
-                            </motion.button>
-                          </form>
-                        </div>
-                      </div>
+                                <i className={`ri-star-${index < reviewRating ? 'fill' : 'line'}`}></i>
+                              </span>
+                            ))}
+                          </div>
+                          <small className="text-muted">
+                            {user ? 'Click on stars to rate' : (
+                              <>
+                                You must be logged in to rate products. 
+                                <Link to="/login" className="ml-2">Login here</Link>
+                              </>
+                            )}
+                          </small>
+                        </FormGroup>
+                        
+                        <FormGroup>
+                          <Label for="reviewText">Your Review</Label>
+                          <Input
+                            type="textarea"
+                            id="reviewText"
+                            placeholder="Share your experience with this product..."
+                            rows="5"
+                            value={reviewText}
+                            onChange={(e) => setReviewText(e.target.value)}
+                            required
+                          />
+                        </FormGroup>
+                        
+                        <Button
+                          color="primary"
+                          type="submit"
+                          disabled={reviewSubmitting}
+                        >
+                          {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                        </Button>
+                      </Form>
                     </div>
-                  )}
-                </Col>
-
-                {relatedProducts.length > 0 && (
-                  <>
-                    <Col lg="12" className="mt-5">
-                      <h2 className="related__title">You might also like</h2>
-                    </Col>
-                    <ProductsList data={relatedProducts} />
-                  </>
-                )}
-              </Row>
-            </Container>
-          </section>
-        </>
-      )}
+                  </div>
+                </div>
+              )}
+            </Col>
+            
+            {/* Related Products */}
+            {relatedProducts.length > 0 && (
+              <Col lg="12" className="mt-5">
+                <h2 className="related__title">You might also like</h2>
+                <Row>
+                  <ProductsList data={relatedProducts} />
+                </Row>
+              </Col>
+            )}
+          </Row>
+        </Container>
+      </section>
     </Helmet>
   );
 };
