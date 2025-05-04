@@ -1,6 +1,8 @@
 const Review = require("../models/Review");
 const Product = require("../models/Product");
+const User = require("../models/User")
 const { sequelize } = require("../config/db");
+const { Op } = require('sequelize');
 
 // Get reviews for a product
 exports.getReviewsByProduct = async (req, res) => {
@@ -48,8 +50,27 @@ exports.getReviewsByProduct = async (req, res) => {
 exports.createReview = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { productId, userName, rating, comment } = req.body;
-    const userId = req.user ? req.user.id : null;
+
+    console.log("=== Creating Review ===");
+    console.log("Request method:", req.method);
+    console.log("Request URL:", req.originalUrl);
+    console.log("Request body:", req.body);
+    console.log("Request user:", req.user);
+    console.log("Auth header:", req.headers.authorization);
+    console.log("Environment JWT_SECRET exists:", !!process.env.JWT_SECRET);
+    const { productId, rating, comment } = req.body;
+    let userId = null;
+    let finalUserName = "Guest";
+
+    // Get user ID from token if authenticated
+    if (req.user) {
+      userId = req.user.id;
+      const user = await User.findByPk(userId);
+      if(user){
+        finalUserName = user.name;
+      }
+      console.log(`Authenticated user ID: ${userId}, User role: ${req.user.role}`);
+    }
 
     // Check if product exists
     const product = await Product.findByPk(productId);
@@ -77,7 +98,7 @@ exports.createReview = async (req, res) => {
       {
         productId,
         userId,
-        userName,
+        userName: finalUserName,
         rating,
         comment,
       },
@@ -91,7 +112,7 @@ exports.createReview = async (req, res) => {
         where: {
           productId,
           rating: {
-            [sequelize.Op.not]: null,
+            [Op.not]: null,
           },
         },
         attributes: [
@@ -158,7 +179,7 @@ exports.deleteReview = async (req, res) => {
             where: {
                 productId,
                 rating: {
-                    [sequelize.Op.not]: null,
+                    [Op.not]: null,
                 },
             },
             attributes: [

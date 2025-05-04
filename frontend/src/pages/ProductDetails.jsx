@@ -10,7 +10,8 @@ import { useDispatch } from "react-redux";
 import { cartActions } from "../slices/cartSlice";
 import { toast } from "react-toastify";
 import axios from "axios";
-import { useSelector } from "react-redux";
+import { AuthService } from '../services/api';      
+
 
 // Define API base URL
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -18,7 +19,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const ProductDetails = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
-  const user = useSelector((state) => state.auth?.user);
   
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -29,7 +29,6 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   
   // Review form state
-  const [reviewName, setReviewName] = useState("");
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -39,6 +38,82 @@ const ProductDetails = () => {
   const [mainImage, setMainImage] = useState("");
   const [thumbnails, setThumbnails] = useState([]);
   
+
+const renderReviewForm = () => {
+  const isLoggedIn = AuthService.isLoggedIn();
+  const currentUser = isLoggedIn ? AuthService.getCurrentUser() : null;
+  const displayName = currentUser?.name || 'User';
+  
+  return (
+    <div>
+      <h4 className="mb-3">Write a Review</h4>
+      
+      {reviewError && (
+        <Alert color="danger" className="mb-3">
+          {reviewError}
+        </Alert>
+      )}
+      
+      {/* Add a simple indicator showing who is posting the review */}
+      <p className="mb-3">
+        {isLoggedIn ? (
+          <span>Posting as <strong>{displayName}</strong></span>
+        ) : (
+          <span>Posting as <strong>Guest</strong></span>
+        )}
+      </p>
+      
+      <Form onSubmit={handleReviewSubmit}>
+        <FormGroup className="rating__group">
+          <Label>Your Rating {!isLoggedIn && <small>(login required)</small>}</Label>
+          <div className="rating-stars">
+            {[...Array(5)].map((_, index) => (
+              <span
+                key={index}
+                onClick={() => isLoggedIn ? setReviewRating(index + 1) : null}
+                className={index < reviewRating ? 'filled' : ''}
+                style={{ 
+                  cursor: isLoggedIn ? 'pointer' : 'not-allowed', 
+                  opacity: isLoggedIn ? 1 : 0.6 
+                }}
+              >
+                <i className={`ri-star-${index < reviewRating ? 'fill' : 'line'}`}></i>
+              </span>
+            ))}
+          </div>
+          {!isLoggedIn && (
+            <small className="text-muted">
+              You must be logged in to rate products. 
+              <Link to="/login" className="ms-2">Login here</Link>
+            </small>
+          )}
+        </FormGroup>
+        
+        <FormGroup>
+          <Label for="reviewText">Your Review</Label>
+          <Input
+            type="textarea"
+            id="reviewText"
+            placeholder="Share your experience with this product..."
+            rows="5"
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
+            required
+          />
+        </FormGroup>
+        
+        <Button
+          color="primary"
+          type="submit"
+          disabled={reviewSubmitting}
+        >
+          {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+        </Button>
+      </Form>
+    </div>
+  );
+};
+
   // Use useCallback to memoize the fetchProductDetails function
   const fetchProductDetails = useCallback(async () => {
     try {
@@ -178,7 +253,6 @@ const ProductDetails = () => {
     setLoading(true);
     setSelectedVariant(null);
     setQuantity(1);
-    setReviewName("");
     setReviewRating(0);
     setReviewText("");
     setMainImage("");
@@ -242,73 +316,88 @@ const ProductDetails = () => {
     e.preventDefault();
     setReviewError("");
     
-    // Basic validation
-    if (!reviewName.trim()) {
-      setReviewError("Please enter your name");
-      return;
-    }
-    
     if (!reviewText.trim()) {
       setReviewError("Please enter your review");
       return;
     }
     
+    const isLoggedIn = AuthService.isLoggedIn();
+  
     // For rating, only validate if the user tries to use it while not logged in
-    if (!user && reviewRating > 0) {
+    if (!isLoggedIn && reviewRating > 0) {
       setReviewError("You must be logged in to rate products. Your review will be submitted without a rating.");
-      setReviewRating(0); // Reset rating for guest users
+      setReviewRating(0);
     }
     
     setReviewSubmitting(true);
     
     try {
       const reviewData = {
-        productId: id,
-        userName: reviewName,
-        rating: user ? reviewRating : null, // Only include rating if user is logged in
+        productId: id,    
+        rating: isLoggedIn ? reviewRating : null,
         comment: reviewText
       };
       
       console.log("Submitting review:", reviewData);
-      const response = await axios.post(`${API_URL}/reviews`, reviewData);
-      
-      if (response.data && response.data.success) {
-        toast.success("Review submitted successfully");
-        
-        // Reset form
-        setReviewName("");
-        setReviewRating(0);
-        setReviewText("");
-        
-        // Refresh reviews
-        try {
-          // Try both endpoint formats again
-          try {
-            const reviewsResponse = await axios.get(`${API_URL}/reviews/${id}`);
-            if (reviewsResponse.data && reviewsResponse.data.success) {
-              setReviews(reviewsResponse.data.reviews || []);
-            }
-          } catch (firstError) {
-            const alternateReviewsResponse = await axios.get(`${API_URL}/reviews/product/${id}`);
-            if (alternateReviewsResponse.data && alternateReviewsResponse.data.success) {
-              setReviews(alternateReviewsResponse.data.reviews || []);
-            }
-          }
-        } catch (error) {
-          console.error("Error refreshing reviews:", error);
-        }
-        
-        // Refresh product to get updated average rating
-        fetchProductDetails();
-      } else {
-        setReviewError(response.data?.message || "Failed to submit review");
+  
+      const token = localStorage.getItem('token');
+    const config = token ? {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
+    } : {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    const response = await axios.post(`${API_URL}/reviews`, reviewData, config);
+
+    if (response.data && response.data.success) {
+      toast.success("Review submitted successfully");
+      
+      // Get the newly created review from the response
+      const newReview = response.data.review;
+      
+      // Add the new review to the beginning of the reviews array
+      setReviews([newReview, ...reviews]);
+      
+      // Update product rating if needed
+      if (newReview.rating) {
+        // Calculate new average rating
+        const allRatings = reviews
+          .filter(r => r.rating)
+          .map(r => r.rating)
+          .concat(newReview.rating);
+        
+        const newAvgRating = allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length;
+        
+        // Update product state with new average rating
+        setProduct(prev => ({
+          ...prev,
+          avgRating: newAvgRating
+        }));
+      }
+      
+      // Reset form      
+      setReviewRating(0);
+      setReviewText("");
+      
+      // No need to call fetchProductDetails() anymore!
+    } else {
+      setReviewError(response.data?.message || "Failed to submit review");
+    }
     } catch (error) {
       console.error("Error submitting review:", error);
       
       if (error.response) {
+        console.error("Error response:", error.response.data);
+        console.error("Error status:", error.response.status);
+        console.error("Error headers:", error.response.headers);
+        
         if (error.response.status === 401) {
-          setReviewError("You must be logged in to rate products. You can still leave a comment without a rating.");
+          setReviewError("Authentication failed. Please try logging in again.");
         } else {
           setReviewError(error.response?.data?.message || `Error ${error.response.status}: Failed to submit review`);
         }
@@ -319,7 +408,7 @@ const ProductDetails = () => {
       setReviewSubmitting(false);
     }
   };
-  
+
   // Handle thumbnail click for image gallery
   const handleThumbnailClick = (imageUrl) => {
     setMainImage(imageUrl);
@@ -547,72 +636,7 @@ const ProductDetails = () => {
                     )}
                     
                     <div className="review__form mt-5">
-                      <h4 className="mb-3">Write a Review</h4>
-                      
-                      {reviewError && (
-                        <Alert color="danger" className="mb-3">
-                          {reviewError}
-                        </Alert>
-                      )}
-                      
-                      <Form onSubmit={handleReviewSubmit}>
-                        <FormGroup>
-                          <Label for="reviewName">Your Name</Label>
-                          <Input
-                            type="text"
-                            id="reviewName"
-                            placeholder="Enter your name"
-                            value={reviewName}
-                            onChange={(e) => setReviewName(e.target.value)}
-                            required
-                          />
-                        </FormGroup>
-                        
-                        <FormGroup className="rating__group">
-                          <Label>Your Rating {!user && <small>(login required)</small>}</Label>
-                          <div className="rating-stars">
-                            {[...Array(5)].map((_, index) => (
-                              <span
-                                key={index}
-                                onClick={() => user ? setReviewRating(index + 1) : null}
-                                className={index < reviewRating ? 'filled' : ''}
-                                style={{ cursor: user ? 'pointer' : 'not-allowed', opacity: user ? 1 : 0.6 }}
-                              >
-                                <i className={`ri-star-${index < reviewRating ? 'fill' : 'line'}`}></i>
-                              </span>
-                            ))}
-                          </div>
-                          <small className="text-muted">
-                            {user ? 'Click on stars to rate' : (
-                              <>
-                                You must be logged in to rate products. 
-                                <Link to="/login" className="ml-2">Login here</Link>
-                              </>
-                            )}
-                          </small>
-                        </FormGroup>
-                        
-                        <FormGroup>
-                          <Label for="reviewText">Your Review</Label>
-                          <Input
-                            type="textarea"
-                            id="reviewText"
-                            placeholder="Share your experience with this product..."
-                            rows="5"
-                            value={reviewText}
-                            onChange={(e) => setReviewText(e.target.value)}
-                            required
-                          />
-                        </FormGroup>
-                        
-                        <Button
-                          color="primary"
-                          type="submit"
-                          disabled={reviewSubmitting}
-                        >
-                          {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
-                        </Button>
-                      </Form>
+                      {renderReviewForm()}
                     </div>
                   </div>
                 </div>
