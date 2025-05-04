@@ -1,4 +1,3 @@
-// frontend/src/services/api.js
 import axios from 'axios';
 
 // Create axios instance
@@ -13,12 +12,31 @@ const API = axios.create({
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    console.log('Interceptor - Token:', token ? 'exists' : 'missing');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Interceptor - Headers set:', config.headers);
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 errors
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response.status === 401) {
+      console.error('401 Unauthorized - clearing token');
+      // Clear token if it's invalid
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    return Promise.reject(error);
+  }
 );
 
 // Auth API calls
@@ -126,3 +144,5 @@ export const ProductService = {
     return response.data;
   },
 };
+
+export default API;

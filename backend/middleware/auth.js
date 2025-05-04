@@ -4,6 +4,9 @@ const User = require('../models/User');
 // Middleware to protect routes - verifies JWT token
 exports.protect = async (req,res,next) =>{
     try{
+
+        console.log('=== AUTH PROTECT MIDDLEWARE ===');
+        console.log('Headers:', req.headers);
         let token;
         // Get token from Authorization header
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {

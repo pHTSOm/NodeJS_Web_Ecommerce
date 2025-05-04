@@ -4,7 +4,8 @@ const authController = require('../controllers/authController')
 const productController = require('../controllers/productController')
 const reviewController = require('../controllers/reviewController')
 const orderController = require('../controllers/orderController')
-const { protect, adminOnly } = require('../middleware/auth')
+const { protect, adminOnly } = require('../middleware/auth');
+const { optionalProtect } = require('../middleware/optionalAuth')
 
 
 // Auth routes
@@ -20,10 +21,9 @@ router.get('/products/brands', productController.getBrands);
 router.get('/products/category/:category', productController.getProductsByCategory);
 router.get('/products/:id', productController.getProductById);
 
-
 // Review routes
 router.get('/reviews/:productId', reviewController.getReviewsByProduct);
-router.post('/reviews', reviewController.createReview);
+router.post('/reviews', optionalProtect,reviewController.createReview);
 router.delete('/reviews/:id', protect, adminOnly,reviewController.deleteReview);
 
 // Order routes

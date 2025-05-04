@@ -119,3 +119,40 @@ exports.getMe = async (req, res) => {
     });
   }
 };
+
+exports.protect = async (req, res, next) => {
+  try {
+    let token;
+    
+    console.log('Headers received:', req.headers);
+    
+    // Get token from Authorization header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+      console.log('Token extracted:', token);
+    }
+
+    if (!token) {
+      console.log('No token found in headers');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Not authorized - no token' 
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token decoded:', decoded);
+
+    req.user = await User.findByPk(decoded.id);
+    console.log('User found:', req.user ? 'Yes' : 'No');
+    
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Not authorized - invalid token' 
+    });
+  }
+};
