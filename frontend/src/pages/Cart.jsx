@@ -27,6 +27,7 @@ const Cart = () => {
                     <tr>
                       <th>Image</th>
                       <th>Title</th>
+                      <th>Variant</th>
                       <th>Price</th>
                       <th>Quantity</th>
                       <th>Delete</th>
@@ -45,7 +46,7 @@ const Cart = () => {
               <div>
                 <h6 className="d-flex align-items-center justify-content-between">
                   Subtotal
-                  <span className="fs-4 fw-bold">${totalAmount}</span>
+                  <span className="fs-4 fw-bold">${totalAmount.toFixed(2)}</span>
                 </h6>
               </div>
               <p className="fs-6 mt-2">
@@ -70,16 +71,26 @@ const Cart = () => {
 const Tr = ({ item }) => {
   const dispatch = useDispatch();
 
+  // Generate a consistent item identifier that includes the variant
+  const getItemId = () => {
+    if (item.variant) {
+      return { productId: item.id, variantId: item.variant.id };
+    }
+    return { productId: item.id };
+  };
+
+  // Use the new deleteCartItem action that supports variants
   const deleteProduct = () => {
-    dispatch(cartActions.deleteItem(item.id));
+    dispatch(cartActions.deleteCartItem(getItemId()));
   };
   
+  // Update increment/decrement to handle variants
   const incrementQuantity = () => {
-    dispatch(cartActions.incrementQuantity(item.id));
+    dispatch(cartActions.incrementItemQuantity(getItemId()));
   };
   
   const decrementQuantity = () => {
-    dispatch(cartActions.decrementQuantity(item.id));
+    dispatch(cartActions.decrementItemQuantity(getItemId()));
   };
 
   const imageUrl = item.imgUrl ? 
@@ -89,7 +100,7 @@ const Tr = ({ item }) => {
     <tr>
       <td>
         <img src={imageUrl}
-       alt= {item.productName}
+       alt={item.productName}
        style={{ 
         width: '80px', 
         height: '80px', 
@@ -100,7 +111,8 @@ const Tr = ({ item }) => {
        onError={(e) => { e.target.src = '/placeholder.png'; }} />
       </td>
       <td>{item.productName}</td>
-      <td>${item.price}</td>
+      <td>{item.variant ? item.variant.name : 'Standard'}</td>
+      <td>${parseFloat(item.price).toFixed(2)}</td>
       <td><div className="quantity-control d-flex align-items-center gap-2">
     <motion.span 
       whileTap={{ scale: 1.2 }} 
@@ -125,7 +137,8 @@ const Tr = ({ item }) => {
         <motion.i
           whileTap={{ scale: 1.2 }}
           onClick={deleteProduct}
-          class="ri-delete-bin-6-line"
+          className="ri-delete-bin-6-line"
+          style={{ cursor: 'pointer' }}
         ></motion.i>
       </td>
     </tr>

@@ -286,31 +286,34 @@ const renderReviewForm = () => {
     return (basePrice * quantity).toFixed(2);
   };
   
-  const addToCart = () => {
-    // Check if product has variants but none is selected
-    if (product.ProductVariants && product.ProductVariants.length > 0 && !selectedVariant) {
-      toast.warning("Please select a variant");
-      return;
-    }
-    
-    // Prepare cart item
-    const cartItem = {
-      id: product.id,
-      productName: product.productName,
-      price: selectedVariant 
-        ? parseFloat(product.price) + parseFloat(selectedVariant.additionalPrice) 
-        : product.price,
-      imgUrl: mainImage,
-      quantity: quantity,
-      variant: selectedVariant ? {
-        id: selectedVariant.id,
-        name: selectedVariant.name
-      } : null
-    };
-    
-    dispatch(cartActions.addItem(cartItem));
-    toast.success("Product added to cart");
+ // Update the addToCart function in ProductDetails.jsx
+const addToCart = () => {
+  // Check if product has variants but none is selected
+  if (product.ProductVariants && product.ProductVariants.length > 0 && !selectedVariant) {
+    toast.warning("Please select a variant");
+    return;
+  }
+  
+  // Prepare cart item with variant information
+  const cartItem = {
+    id: product.id,
+    productName: product.productName,
+    price: selectedVariant 
+      ? parseFloat(product.price) + parseFloat(selectedVariant.additionalPrice) 
+      : product.price,
+    imgUrl: mainImage,
+    quantity: quantity,
+    // Include complete variant information
+    variant: selectedVariant ? {
+      id: selectedVariant.id,
+      name: selectedVariant.name,
+      additionalPrice: selectedVariant.additionalPrice
+    } : null
   };
+  
+  dispatch(cartActions.addItem(cartItem));
+  toast.success("Product added to cart");
+};
   
   const handleReviewSubmit = async (e) => {
     e.preventDefault();

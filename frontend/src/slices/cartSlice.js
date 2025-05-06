@@ -13,32 +13,48 @@ const cartSlice = createSlice({
     addItem: (state, action) => {
       const newItem = action.payload;
       console.log("Before URL fix - Item being added to cart:", newItem);
+      
       if (newItem.imgUrl && !newItem.imgUrl.startsWith('http')) {
         newItem.imgUrl = `http://localhost:5000${newItem.imgUrl}`;
         console.log("After URL fix - Updated image URL:", newItem.imgUrl);
       }
 
+      // Generate a unique cart item key using product ID and variant ID (if exists)
+      // This is the key fix for the variant issue
+      const variantId = newItem.variant ? newItem.variant.id : 'default';
+      const cartItemKey = `${newItem.id}-${variantId}`;
+      
+      // Check if this exact product + variant combination exists in cart
       const existingItemIndex = state.cartItems.findIndex(
-        (item) => item.id === newItem.id
+        (item) => {
+          const itemVariantId = item.variant ? item.variant.id : 'default';
+          return item.id === newItem.id && itemVariantId === variantId;
+        }
       );
       
-
       if (existingItemIndex >= 0) {
-        // Item exists, update quantity
-        state.cartItems[existingItemIndex].quantity += 1;
+        // Same product + variant exists, just update quantity
+        state.cartItems[existingItemIndex].quantity += newItem.quantity || 1;
       } else {
-        // Item doesn't exist, add new item with quantity 1
-        newItem.quantity = 1;
+        // Different product or different variant, add as new item
+        newItem.quantity = newItem.quantity || 1;
+        // Store the cartItemKey for later use (optional)
+        newItem.cartItemKey = cartItemKey;
         state.cartItems.push(newItem);
       }
       
       // Update totals
-      state.totalQuantity++;
+      state.totalQuantity = state.cartItems.reduce(
+        (total, item) => total + item.quantity, 
+        0
+      );
+      
       state.totalAmount = state.cartItems.reduce(
         (total, item) => total + Number(item.price) * Number(item.quantity),
         0
       );
     },
+    
     deleteItem: (state, action) => {
       const id = action.payload;
       const existingItemIndex = state.cartItems.findIndex(
@@ -57,6 +73,30 @@ const cartSlice = createSlice({
       }
     },
 
+    // Updated delete function to handle variants
+    deleteCartItem: (state, action) => {
+      const { productId, variantId } = action.payload;
+      const variantIdToCheck = variantId || 'default';
+      
+      const existingItemIndex = state.cartItems.findIndex(
+        (item) => {
+          const itemVariantId = item.variant ? item.variant.id : 'default';
+          return item.id === productId && itemVariantId === variantIdToCheck;
+        }
+      );
+      
+      if (existingItemIndex >= 0) {
+        const itemToDelete = state.cartItems[existingItemIndex];
+        
+        // Subtract the price and quantity of this item
+        state.totalQuantity -= itemToDelete.quantity;
+        state.totalAmount -= itemToDelete.price * itemToDelete.quantity;
+        
+        // Remove the item from the cart
+        state.cartItems.splice(existingItemIndex, 1);
+      }
+    },
+    
     // Add quantity controls 
     incrementQuantity: (state, action) => {
       const id = action.payload;
@@ -76,6 +116,45 @@ const cartSlice = createSlice({
         state.totalQuantity--;
         state.totalAmount -= Number(item.price);
       }
+    },
+    
+    // Better increment/decrement that handles variants
+    incrementItemQuantity: (state, action) => {
+      const { productId, variantId } = action.payload;
+      const variantIdToCheck = variantId || 'default';
+      
+      const item = state.cartItems.find(item => {
+        const itemVariantId = item.variant ? item.variant.id : 'default';
+        return item.id === productId && itemVariantId === variantIdToCheck;
+      });
+      
+      if (item) {
+        item.quantity++;
+        state.totalQuantity++;
+        state.totalAmount += Number(item.price);
+      }
+    },
+    
+    decrementItemQuantity: (state, action) => {
+      const { productId, variantId } = action.payload;
+      const variantIdToCheck = variantId || 'default';
+      
+      const item = state.cartItems.find(item => {
+        const itemVariantId = item.variant ? item.variant.id : 'default';
+        return item.id === productId && itemVariantId === variantIdToCheck;
+      });
+      
+      if (item && item.quantity > 1) {
+        item.quantity--;
+        state.totalQuantity--;
+        state.totalAmount -= Number(item.price);
+      }
+    },
+    
+    clearCart: (state) => {
+      state.cartItems = [];
+      state.totalAmount = 0;
+      state.totalQuantity = 0;
     }
   }
 });
