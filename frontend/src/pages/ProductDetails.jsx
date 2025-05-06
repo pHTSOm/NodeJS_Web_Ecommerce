@@ -9,12 +9,8 @@ import ProductsList from "../components/UI/ProductsList";
 import { useDispatch } from "react-redux";
 import { cartActions } from "../slices/cartSlice";
 import { toast } from "react-toastify";
-import axios from "axios";
-import { AuthService } from '../services/api';      
+import { AuthService, ReviewService, ProductService } from '../services/api';      
 
-
-// Define API base URL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -115,18 +111,18 @@ const renderReviewForm = () => {
 };
 
   // Use useCallback to memoize the fetchProductDetails function
+  
   const fetchProductDetails = useCallback(async () => {
     try {
       setLoading(true);
       
-      console.log(`Fetching product with ID: ${id} from ${API_URL}/products/${id}`);
+      console.log(`Fetching product with ID: ${id}`);
       
-      // Fetch product details - use full API URL path
-      const response = await axios.get(`${API_URL}/products/${id}`);
-      console.log("Product API response:", response);
+      // Changed from direct axios to ProductService
+      const response = await ProductService.getProductById(id);
       
-      if (response.data && response.data.success && response.data.product) {
-        const productData = response.data.product;
+      if (response && response.success && response.product) {
+        const productData = response.product;
         setProduct(productData);
         
         // Process product images
@@ -141,7 +137,7 @@ const renderReviewForm = () => {
               if (parsedImages && parsedImages.length > 0) {
                 // Process all images in the array
                 allImages = parsedImages.map(img => {
-                  return img.startsWith('http') ? img : `http://localhost:5000${img}`;
+                  return img.startsWith('http') ? img : `${img}`;
                 });
                 mainImg = allImages[0];
               }
@@ -150,13 +146,13 @@ const renderReviewForm = () => {
             else if (typeof productData.imgUrl === 'string') {
               mainImg = productData.imgUrl.startsWith('http') 
                 ? productData.imgUrl 
-                : `http://localhost:5000${productData.imgUrl}`;
+                : `${productData.imgUrl}`;
               allImages = [mainImg];
             }
             // Handle array directly
             else if (Array.isArray(productData.imgUrl) && productData.imgUrl.length > 0) {
               allImages = productData.imgUrl.map(img => {
-                return img.startsWith('http') ? img : `http://localhost:5000${img}`;
+                return img.startsWith('http') ? img : `${img}`;
               });
               mainImg = allImages[0];
             }
@@ -175,75 +171,47 @@ const renderReviewForm = () => {
         if (productData.category) {
           try {
             console.log(`Fetching related products for category: ${productData.category}`);
-            const relatedResponse = await axios.get(`${API_URL}/products/category/${productData.category}?limit=4`);
-            if (relatedResponse.data && relatedResponse.data.success) {
+            // Changed from direct axios to ProductService
+            const relatedResponse = await ProductService.getProductsByCategory(productData.category, { limit: 4 });
+            
+            if (relatedResponse && relatedResponse.success) {
               // Filter out the current product
-              const related = (relatedResponse.data.products || []).filter(item => item.id !== parseInt(id));
+              const related = (relatedResponse.products || []).filter(item => item.id !== parseInt(id));
               setRelatedProducts(related.slice(0, 4));
             }
           } catch (error) {
             console.error("Error fetching related products:", error);
             // Silently handle the error
             setRelatedProducts([]);
-
-            if (error.response) {
-              console.error("Response data:", error.response.data);
-              console.error("Response status:", error.response.status);
-            }
           }
         }
         
-        // Fetch reviews - try both endpoint formats
+        // Fetch reviews
         try {
           console.log(`Fetching reviews for product: ${id}`);
-          // Try first endpoint format
-          try {
-            const reviewsResponse = await axios.get(`${API_URL}/reviews/${id}`);
-            if (reviewsResponse.data && reviewsResponse.data.success) {
-              setReviews(reviewsResponse.data.reviews || []);
-            }
-          } catch (firstError) {
-            console.error("Error with first review endpoint format:", firstError);
-            // Try alternate endpoint format
-            const alternateReviewsResponse = await axios.get(`${API_URL}/reviews/product/${id}`);
-            if (alternateReviewsResponse.data && alternateReviewsResponse.data.success) {
-              setReviews(alternateReviewsResponse.data.reviews || []);
-            }
+          // Changed from direct axios to ReviewService
+          const reviewsResponse = await ReviewService.getReviewsByProduct(id);
+          
+          if (reviewsResponse && reviewsResponse.success) {
+            setReviews(reviewsResponse.reviews || []);
           }
         } catch (error) {
           console.error("Error fetching reviews:", error);
-          // Silently handle the error - don't show error toast for this
+          // Silently handle the error
           setReviews([]);
         }
       } else {
-        console.error("Product data not found in response:", response.data);
+        console.error("Product data not found in response:", response);
         toast.error("Product not found or invalid response format");
       }
       
       setLoading(false);
     } catch (error) {
-      // Improved error handling to diagnose the issue
       console.error("Error fetching product:", error);
-      if (error.response) {
-        console.error("Response status:", error.response.status);
-        console.error("Response data:", error.response.data);
-        
-        if (error.response.status === 404) {
-          toast.error(`Product with ID ${id} not found. Please check the ID and try again.`);
-        } else {
-          toast.error(`Error ${error.response.status}: ${error.response.data?.message || 'Unknown error'}`);
-        }
-      } else if (error.request) {
-        // Request made but no response received
-        console.error("No response received:", error.request);
-        toast.error("Server not responding. Please check your connection and try again.");
-      } else {
-        // Something else caused the error
-        toast.error(`Error: ${error.message}`);
-      }
+      toast.error(`Error: ${error.message}`);
       setLoading(false);
     }
-  }, [id]); // Only depend on id
+  }, [id]);
   
   useEffect(() => {
     // Reset state when product ID changes
@@ -260,8 +228,7 @@ const renderReviewForm = () => {
     setReviewError("");
     
     fetchProductDetails();
-  }, [id, fetchProductDetails]); // Now include fetchProductDetails as dependency
-  
+  }, [id, fetchProductDetails]);
   const handleQuantityChange = (operation) => {
     if (operation === 'increase') {
       setQuantity(prev => prev + 1);
@@ -355,13 +322,13 @@ const addToCart = () => {
       }
     };
     
-    const response = await axios.post(`${API_URL}/reviews`, reviewData, config);
+    const response = await ReviewService.createReview(reviewData);
 
-    if (response.data && response.data.success) {
+    if (response && response.success) {
       toast.success("Review submitted successfully");
       
       // Get the newly created review from the response
-      const newReview = response.data.review;
+      const newReview = response.review;
       
       // Add the new review to the beginning of the reviews array
       setReviews([newReview, ...reviews]);
@@ -392,21 +359,9 @@ const addToCart = () => {
       setReviewError(response.data?.message || "Failed to submit review");
     }
     } catch (error) {
-      console.error("Error submitting review:", error);
+      console.error("Error submitting review:", error);            
+      setReviewError("Network error. Please try again.");
       
-      if (error.response) {
-        console.error("Error response:", error.response.data);
-        console.error("Error status:", error.response.status);
-        console.error("Error headers:", error.response.headers);
-        
-        if (error.response.status === 401) {
-          setReviewError("Authentication failed. Please try logging in again.");
-        } else {
-          setReviewError(error.response?.data?.message || `Error ${error.response.status}: Failed to submit review`);
-        }
-      } else {
-        setReviewError("Network error. Please try again.");
-      }
     } finally {
       setReviewSubmitting(false);
     }

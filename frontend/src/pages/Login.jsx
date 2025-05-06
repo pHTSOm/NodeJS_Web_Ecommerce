@@ -20,22 +20,24 @@ const Login = () => {
     }
   }, [navigate]);
 
+  
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      await AuthService.login({ email, password });
+      // Changed from direct API call to AuthService
+      const response = await AuthService.login({ email, password });
       setLoading(false);
       toast.success("Login successful");
       
       setTimeout(() => {
-    if (AuthService.isAdmin()) {
-      navigate("/admin/products");
-    } else {
-      navigate("/");
-    }
-  }, 100);
+        if (AuthService.isAdmin()) {
+          navigate("/admin/products");
+        } else {
+          navigate("/");
+        }
+      }, 100);
     } catch (error) {
       setLoading(false);
       toast.error(error.response?.data?.message || "Login failed");

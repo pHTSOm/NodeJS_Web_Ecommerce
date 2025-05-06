@@ -14,7 +14,8 @@ services:
       - product-service
       - frontend
     networks:
-      - ecommerce-network
+      - Ecommerce-Project-network
+
 
   # MySQL Database
   mysql:
@@ -44,7 +45,7 @@ services:
     build: 
       context: ./services/user-service
       dockerfile: Dockerfile
-    container_name: ecommerce-user-service
+    container_name: Ecommerce-Project-user-service
     restart: always
     environment:
       DB_HOST: mysql
@@ -57,7 +58,8 @@ services:
       mysql:
         condition: service_healthy
     networks:
-      - ecommerce-network
+      - Ecommerce-Project-network
+
 
   # Product Service
   product-service:
@@ -80,35 +82,8 @@ services:
       - mysql
       - user-service
     networks:
-      - ecommerce-network
-
-  # Backend Node.js API
-  backend:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: Ecommerce-Project-backend
-    restart: always
-    ports:
-      - "5000:5000"  # Only for direct debugging access
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      DB_HOST: mysql
-      DB_USER: user
-      DB_PASSWORD: password
-      DB_NAME: NodeJS_midterm_db
-      JWT_SECRET: 96555b9b-4a7e-43e4-87c3-93a2f0548264
-      NODE_ENV: production
-      LOG_LEVEL: debug  # For better troubleshooting
-    volumes:
-      - ./backend:/app  # Use bind mount for easier development
-      - ./backend/public/uploads:/app/public/uploads
-    networks:
       - Ecommerce-Project-network
-    deploy:
-      replicas: 2
+
 
   # Frontend React App
   frontend:
@@ -120,7 +95,7 @@ services:
     environment:
       - REACT_APP_API_URL=/api  # Use relative URL for API calls
     networks:
-      -Ecommerce-Project-network
+      - Ecommerce-Project-network
 
 
 networks:

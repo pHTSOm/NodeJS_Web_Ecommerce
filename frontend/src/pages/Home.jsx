@@ -10,15 +10,7 @@ import ProductsList from "../components/UI/ProductsList";
 import Clock from "../components/UI/Clock";
 import counterImg from "../assets/images/counter-timer-img.png";
 import axios from "axios";
-
-// Custom CSS for the view all links
-const viewAllLinkStyle = {
-  color: "#0a1d37",
-  fontWeight: "500",
-  textDecoration: "none",
-  display: "inline-block",
-  transition: "all 0.3s ease"
-};
+import { ProductService } from "../services/api";
 
 const Home = () => {
   const [newProducts, setNewProducts] = useState([]);
@@ -38,14 +30,10 @@ const Home = () => {
       
       try {
         console.log("Attempting to fetch products from API...");
-        const response = await axios.get('http://localhost:5000/api/products', {
-          timeout: 10000 // Add timeout to prevent hanging requests
-        });
+        const response = await ProductService.getAllProducts({ limit : 20 });                
         
-        console.log("API Response:", response);
-        
-        if (response.data && response.data.success) {
-          const allProducts = response.data.products || [];
+        if (response && response.success) {
+          const allProducts = response.products || [];
           
           // Filter products by category and flags
           const newProds = allProducts.filter(product => product.isNew === true);
