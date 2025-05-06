@@ -20,4 +20,6 @@ router.get('/users', protect, adminOnly, userController.getAllUsers);
 router.put('/users/:id', protect, adminOnly, userController.updateUser);
 router.delete('/users/:id', protect, adminOnly, userController.deleteUser);
 
+
+router.get('/check-role', protect, userController.checkRole);
 module.exports = router;

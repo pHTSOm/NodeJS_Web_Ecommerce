@@ -357,3 +357,20 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
+
+exports.checkRole = async (req, res) => {
+  try {
+    // User is already authenticated via protect middleware
+    // Just return the role
+    res.json({
+      success: true,
+      role: req.user.role
+    });
+  } catch (error) {
+    console.error('Error checking role:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};

@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  # Nginx Gateway
+  nginx:
+    image: nginx:latest
+    container_name: ecommerce-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - user-service
+      - product-service
+      - frontend
+    networks:
+      - ecommerce-network
+
   # MySQL Database
   mysql:
     image: mysql:8.0
@@ -28,13 +43,14 @@ services:
   user-service:
     build: 
       context: ./services/user-service
+      dockerfile: Dockerfile
     container_name: ecommerce-user-service
     restart: always
     environment:
       DB_HOST: mysql
       DB_USER: user
       DB_PASSWORD: password
-      DB_NAME: ecommerce_db
+      DB_NAME: NodeJS_midterm_db
       JWT_SECRET: ${JWT_SECRET}
       SERVICE_PORT: 3001
     depends_on:
@@ -43,6 +59,28 @@ services:
     networks:
       - ecommerce-network
 
+  # Product Service
+  product-service:
+    build: 
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    container_name: Ecommerce-Project-product-service
+    restart: always
+    environment:
+      - SERVICE_PORT=3002
+      - JWT_SECRET=your_shared_jwt_secret
+      - DB_HOST=mysql
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=NodeJS_midterm_db 
+      - USER_SERVICE_URL=http://user-service:3001
+    volumes:
+      - ./services/product-service/public/uploads:/app/public/uploads
+    depends_on:
+      - mysql
+      - user-service
+    networks:
+      - ecommerce-network
 
   # Backend Node.js API
   backend:
@@ -84,19 +122,6 @@ services:
     networks:
       -Ecommerce-Project-network
 
-  # Nginx as the main entry point
-  nginx:
-    image: nginx:latest
-    container_name: Ecommerce-Project-nginx
-    ports:
-      - "80:80"  # Main application port
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf  
-    depends_on:
-      - user-service
-      - frontend
-    networks:
-      -Ecommerce-Project-network
 
 networks:
  Ecommerce-Project-network:
