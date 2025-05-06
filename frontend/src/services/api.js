@@ -2,20 +2,19 @@ import axios from 'axios';
 
 // Create axios instance
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.REACT_APP_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 10000
 });
 
 // Add auth token to requests if available
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    console.log('Interceptor - Token:', token ? 'exists' : 'missing');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('Interceptor - Headers set:', config.headers);
+      config.headers.Authorization = `Bearer ${token}`;    
     }
     return config;
   },
@@ -25,13 +24,38 @@ API.interceptors.request.use(
   }
 );
 
+// Add retry mechanism for network errors
+API.interceptors.response.use(
+  response => response,
+  async error => {
+    const config = error.config;
+    
+    // Only retry on network errors or 5xx responses
+    if (!config || !config.retry || config.retry >= 3 ||
+        (error.response && error.response.status < 500)) {
+      return Promise.reject(error);
+    }
+    
+    // Set retry count
+    config.retry = config.retry ? config.retry + 1 : 1;
+    
+    // Exponential backoff
+    const delay = Math.pow(2, config.retry) * 100;
+    
+    console.log(`Retrying request to ${config.url} (attempt ${config.retry})`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    return API(config);
+  }
+);
+
+
 // Add response interceptor to handle 401 errors
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response.status === 401) {
+    if (error.response && error.response.status === 401) {
       console.error('401 Unauthorized - clearing token');
-      // Clear token if it's invalid
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
@@ -82,13 +106,44 @@ export const AuthService = {
     console.error('Error checking admin status:', err);
     return false;
   }
-}
+},
+  // Add new user profile methods
+  getUserProfile: async () => {
+    const response = await API.get('/users/me');
+    return response.data;
+  },
+  
+  updateUserProfile: async (profileData) => {
+    const response = await API.put('/users/me', profileData);
+    return response.data;
+  },
+  
+  // Address management
+  getAddresses: async () => {
+    const response = await API.get('/users/addresses');
+    return response.data;
+  },
+  
+  addAddress: async (addressData) => {
+    const response = await API.post('/users/addresses', addressData);
+    return response.data;
+  },
+  
+  updateAddress: async (id, addressData) => {
+    const response = await API.put(`/users/addresses/${id}`, addressData);
+    return response.data;
+  },
+  
+  deleteAddress: async (id) => {
+    const response = await API.delete(`/users/addresses/${id}`);
+    return response.data;
+  }
 };
 
 // Product API calls
 export const ProductService = {
-  getAllProducts: async () => {
-    const response = await API.get('/products');
+  getAllProducts: async (params = {}) => {
+    const response = await API.get('/products', { params });
     return response.data;
   },
   
@@ -97,29 +152,35 @@ export const ProductService = {
     return response.data;
   },
   
-  getProductsByCategory: async (category) => {
-    const response = await API.get(`/products/category/${category}`);
+  getProductsByCategory: async (category, params = {}) => {
+    const response = await API.get(`/products/category/${category}`, { params });
     return response.data;
   },
   
+  getBrands: async () => {
+    const response = await API.get('/products/brands');
+    return response.data;
+  },
+  
+  getNewProducts: async () => {
+    const response = await API.get('/products/new');
+    return response.data;
+  },
+  
+  getBestSellerProducts: async () => {
+    const response = await API.get('/products/bestseller');
+    return response.data;
+  },
+
   createProduct: async (productData) => {
     const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
     };
-    
-    try {
-      console.log("Sending request to:", API.defaults.baseURL + '/products');
-      console.log("With headers:", config.headers);
-      console.log("Form data keys:", [...productData.keys()]);
-      
-      const response = await API.post('/products', productData, config);
-      return response.data;
-    } catch (error) {
-      console.error("Full error details:", error);
-      throw error;
-    }
+
+    const response = await API.post('/products', productData, config);
+    return response.data;
   },
   
   updateProduct: async (id, productData) => {
@@ -144,5 +205,77 @@ export const ProductService = {
     return response.data;
   },
 };
+
+
+// Review Service
+export const ReviewService = {
+  getReviewsByProduct: async (productId, params = {}) => {
+    const response = await API.get(`/reviews/${productId}`, { params });
+    return response.data;
+  },
+  
+  createReview: async (reviewData) => {
+    const response = await API.post('/reviews', reviewData);
+    return response.data;
+  },
+  
+  deleteReview: async (id) => {
+    const response = await API.delete(`/reviews/${id}`);
+    return response.data;
+  }
+};
+
+// Order Service
+export const OrderService = {
+  createOrder: async (orderData) => {
+    const response = await API.post('/orders', orderData);
+    return response.data;
+  },
+  
+  getOrders: async () => {
+    const response = await API.get('/orders');
+    return response.data;
+  },
+  
+  getOrderDetails: async (id) => {
+    const response = await API.get(`/orders/${id}`);
+    return response.data;
+  },
+  
+  getGuestOrders: async (guestData) => {
+    const response = await API.post('/orders/guest', guestData);
+    return response.data;
+  },
+  
+  // Admin endpoints
+  getAllOrders: async (params = {}) => {
+    const response = await API.get('/admin/orders', { params });
+    return response.data;
+  },
+  
+  updateOrderStatus: async (id, statusData) => {
+    const response = await API.put(`/admin/orders/${id}/status`, statusData);
+    return response.data;
+  }
+};
+
+// Admin Service for additional admin functionality
+export const AdminService = {
+  getAllUsers: async () => {
+    const response = await API.get('/admin/users');
+    return response.data;
+  },
+  
+  updateUser: async (id, userData) => {
+    const response = await API.put(`/admin/users/${id}`, userData);
+    return response.data;
+  },
+  
+  deleteUser: async (id) => {
+    const response = await API.delete(`/admin/users/${id}`);
+    return response.data;
+  }
+};
+
 
 export default API;

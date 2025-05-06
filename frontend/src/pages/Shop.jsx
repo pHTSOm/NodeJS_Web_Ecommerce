@@ -4,8 +4,8 @@ import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Col, Form, FormGroup, Input, Label, Button } from "reactstrap";
 import "../styles/shop.css";
 import ProductsList from "../components/UI/ProductsList";
-import axios from "axios";
 import { useLocation } from "react-router-dom";
+import { ProductService  } from "../services/api";
 
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -74,7 +74,7 @@ const Shop = () => {
   // Function to fetch available categories
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(`${API_URL}/products`);
+      const response = await ProductService.getAllProducts();
       const products = response.data.products || [];
       
       // Extract unique categories
@@ -88,7 +88,7 @@ const Shop = () => {
   // Function to fetch available brands
   const fetchBrands = async () => {
     try {
-      const response = await axios.get(`${API_URL}/products/brands`);
+      const response = await ProductService.getBrands();
       setBrands(response.data.brands || []);
     } catch (error) {
       console.error("Error fetching brands:", error);
@@ -100,36 +100,38 @@ const fetchProducts = async (page = 1, filterParams = {}) => {
   setLoading(true);
   try {
     // Build query parameters
-    const params = new URLSearchParams();
-    params.append('page', page);
-    params.append('limit', 12); // Products per page
+    const params = {
+      page,
+      limit: 12,
+      ...filterParams
+    }
     
     // Add filter parameters (either from form or URL)
-    if (filterParams.category) params.append('category', filterParams.category);
-    else if (selectedCategory) params.append('category', selectedCategory);
+    // if (filterParams.category) params.append('category', filterParams.category);
+    // else if (selectedCategory) params.append('category', selectedCategory);
     
-    if (filterParams.brand) params.append('brand', filterParams.brand);
-    else if (selectedBrand) params.append('brand', selectedBrand);
+    // if (filterParams.brand) params.append('brand', filterParams.brand);
+    // else if (selectedBrand) params.append('brand', selectedBrand);
     
-    if (filterParams.search) params.append('search', filterParams.search);
-    else if (searchTerm) params.append('search', searchTerm);
+    // if (filterParams.search) params.append('search', filterParams.search);
+    // else if (searchTerm) params.append('search', searchTerm);
     
-    if (filterParams.minPrice) params.append('minPrice', filterParams.minPrice);
-    else if (minPrice) params.append('minPrice', minPrice);
+    // if (filterParams.minPrice) params.append('minPrice', filterParams.minPrice);
+    // else if (minPrice) params.append('minPrice', minPrice);
     
-    if (filterParams.maxPrice) params.append('maxPrice', filterParams.maxPrice);
-    else if (maxPrice) params.append('maxPrice', maxPrice);
+    // if (filterParams.maxPrice) params.append('maxPrice', filterParams.maxPrice);
+    // else if (maxPrice) params.append('maxPrice', maxPrice);
     
-    if (filterParams.sort) params.append('sort', filterParams.sort);
-    else if (sortOption) params.append('sort', sortOption);
+    // if (filterParams.sort) params.append('sort', filterParams.sort);
+    // else if (sortOption) params.append('sort', sortOption);
     
-    // Special filters (isNew, isBestSeller)
-    if (filterParams.isNew) params.append('isNew', filterParams.isNew);
-    if (filterParams.isBestSeller) params.append('isBestSeller', filterParams.isBestSeller);
+    // // Special filters (isNew, isBestSeller)
+    // if (filterParams.isNew) params.append('isNew', filterParams.isNew);
+    // if (filterParams.isBestSeller) params.append('isBestSeller', filterParams.isBestSeller);
     
     console.log("Fetching products with params:", params.toString());
     
-    const response = await axios.get(`${API_URL}/products?${params.toString()}`);
+    const response = await ProductService.getAllProducts(params);
     
     if (response.data && response.data.success) {
       setProducts(response.data.products || []);

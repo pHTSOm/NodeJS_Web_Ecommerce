@@ -40,10 +40,27 @@ const ProductCard = ({item}) => {
   }
 
   // Add server prefix if needed
-  if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/placeholder')) {
-    imageUrl = `http://localhost:5000${imageUrl}`;
+  
+if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/placeholder')) {
+  // Check for duplicate uploads in path
+  if (imageUrl.startsWith('/uploads/')) {
+    // Already has uploads prefix, use as is
+    imageUrl = imageUrl;
+  } 
+  // Handle path starting with /products
+  else if (imageUrl.startsWith('/products/')) {
+    imageUrl = `/uploads${imageUrl}`;
+  } 
+  // Handle other formats
+  else {
+    // Add appropriate prefix based on if it already has a leading slash
+    imageUrl = imageUrl.startsWith('/') 
+      ? `/uploads${imageUrl}` 
+      : `/uploads/products/${imageUrl}`;
   }
+}
 
+// Debug log to check final URL
   console.log("Final image URL for", item.productName, ":", imageUrl);
 
   // Format price to display with 2 decimal places

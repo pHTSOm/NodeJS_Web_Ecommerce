@@ -8,6 +8,9 @@ const { Op } = require('sequelize');
 // Get all products
 exports.getAllProducts = async (req, res) => {
   try {
+    console.log("GET /products request received");
+    console.log("Query params:", req.query);
+    
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
