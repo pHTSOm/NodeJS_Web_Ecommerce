@@ -45,28 +45,32 @@ exports.protect = async (req, res, next) => {
 
 exports.optionalProtect = async (req, res, next) => {
   try {
+    console.log('optionalProtect middleware called');
+    console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Not present');
+    
     let token;
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
 
       try {
-        // Verify token
+        // Verify token and set user ID properly
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.userId = decoded.id;
+        console.log('User authenticated:', req.userId);
       } catch (error) {
+        console.log('Token verification failed:', error.message);
         req.userId = null;
       }
     } else {
+      console.log('No authorization header found');
       req.userId = null;
     }
-
+    console.log('User ID after processing:', req.userId);
     next();
   } catch (error) {
     console.error("Error in optionalProtect middleware:", error);
+    req.userId = null;
     next();
   }
 };

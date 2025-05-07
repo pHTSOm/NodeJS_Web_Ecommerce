@@ -1,5 +1,6 @@
 const Review = require("../models/Review");
 const Product = require("../models/Product");
+const axios = require('axios');
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/db");
 
@@ -47,10 +48,14 @@ exports.getReviewsByProduct = async (req, res) => {
 
 // Create a new review
 exports.createReview = async (req, res) => {
+  console.log("CREATE REVIEW CALLED");
+  console.log("Request body:", req.body);
+  console.log("User ID:", req.userId);
+
   const transaction = await sequelize.transaction();
   try {
+    
     const { productId, rating, comment } = req.body;
-
     // Get user ID from token if authenticated (passed by middleware)
     let userId = req.userId;
     let finalUserName = "Guest";
@@ -160,7 +165,8 @@ exports.createReview = async (req, res) => {
     console.error("Error creating review:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: error.message || "Server error",
+      errorDetails: error.toString()
     });
   }
 };

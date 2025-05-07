@@ -143,7 +143,9 @@ export const AuthService = {
 // Product API calls
 export const ProductService = {
   getAllProducts: async (params = {}) => {
+    console.log('API call parameters:', params);
     const response = await API.get('/products', { params });
+    console.log('API response:', response);
     return response.data;
   },
   
@@ -215,8 +217,23 @@ export const ReviewService = {
   },
   
   createReview: async (reviewData) => {
-    const response = await API.post('/reviews', reviewData);
-    return response.data;
+    try {
+      console.log('Review data being sent:', reviewData);
+      console.log('Auth token present:', !!localStorage.getItem('token'));
+      const response = await API.post('/reviews/', reviewData);
+      return response.data;
+    } catch (error) {
+      console.error('Review submission error details:', {
+        message: error.message,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        } : 'No response',
+        request: error.request ? 'Request sent but no response received' : 'Request setup failed'
+      });
+      throw error;
+    }
   },
   
   deleteReview: async (id) => {

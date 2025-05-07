@@ -309,9 +309,9 @@ const addToCart = () => {
       };
       
       console.log("Submitting review:", reviewData);
-  
       const token = localStorage.getItem('token');
-    const config = token ? {
+      console.log("Headers:", token ? 'Auth token present' : 'No auth token');
+      const config = token ? {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
