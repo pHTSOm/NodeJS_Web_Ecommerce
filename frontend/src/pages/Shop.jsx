@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 import { ProductService  } from "../services/api";
 
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const Shop = () => {
   const [products, setProducts] = useState([]);
@@ -75,7 +75,7 @@ const Shop = () => {
   const fetchCategories = async () => {
     try {
       const response = await ProductService.getAllProducts();
-      const products = response.data.products || [];
+      const products = response.products || [];
       
       // Extract unique categories
       const uniqueCategories = [...new Set(products.map(item => item.category))];
@@ -89,63 +89,48 @@ const Shop = () => {
   const fetchBrands = async () => {
     try {
       const response = await ProductService.getBrands();
-      setBrands(response.data.brands || []);
+      setBrands(response.brands || []);
     } catch (error) {
       console.error("Error fetching brands:", error);
     }
   };
 
   // Main function to fetch products with filters
-const fetchProducts = async (page = 1, filterParams = {}) => {
-  setLoading(true);
-  try {
-    // Build query parameters
-    const params = {
-      page,
-      limit: 12,
-      ...filterParams
+  const fetchProducts = async (page = 1, filterParams = {}) => {
+    setLoading(true);
+    try {
+      // Build query parameters
+      const searchParams = new URLSearchParams();
+      searchParams.append('page', page);
+      searchParams.append('limit', 12);
+      
+      // Add filter parameters
+      Object.entries(filterParams).forEach(([key, value]) => {
+        if (value !== '') {
+          searchParams.append(key, value);
+        }
+      });
+      
+      console.log("Fetching products with params:", searchParams.toString());
+      
+      const response = await ProductService.getAllProducts(Object.fromEntries(searchParams));
+      
+      if (response && (response.success || (response.data && response.data.success))) {
+        const productData = response.success ? response : response.data;
+        setProducts(productData.products || []);
+        setTotalPages(productData.pagination?.totalPages || 1);
+        setCurrentPage(page);
+      } else {
+        console.error('Invalid product response format:', response);
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
-    
-    // Add filter parameters (either from form or URL)
-    // if (filterParams.category) params.append('category', filterParams.category);
-    // else if (selectedCategory) params.append('category', selectedCategory);
-    
-    // if (filterParams.brand) params.append('brand', filterParams.brand);
-    // else if (selectedBrand) params.append('brand', selectedBrand);
-    
-    // if (filterParams.search) params.append('search', filterParams.search);
-    // else if (searchTerm) params.append('search', searchTerm);
-    
-    // if (filterParams.minPrice) params.append('minPrice', filterParams.minPrice);
-    // else if (minPrice) params.append('minPrice', minPrice);
-    
-    // if (filterParams.maxPrice) params.append('maxPrice', filterParams.maxPrice);
-    // else if (maxPrice) params.append('maxPrice', maxPrice);
-    
-    // if (filterParams.sort) params.append('sort', filterParams.sort);
-    // else if (sortOption) params.append('sort', sortOption);
-    
-    // // Special filters (isNew, isBestSeller)
-    // if (filterParams.isNew) params.append('isNew', filterParams.isNew);
-    // if (filterParams.isBestSeller) params.append('isBestSeller', filterParams.isBestSeller);
-    
-    console.log("Fetching products with params:", params.toString());
-    
-    const response = await ProductService.getAllProducts(params);
-    
-    if (response.data && response.data.success) {
-      setProducts(response.data.products || []);
-      setTotalPages(response.data.pagination?.totalPages || 1);
-      setCurrentPage(page);
-    } else {
-      console.error("Invalid response format:", response.data);
-    }
-  } catch (error) {
-    console.error("Error fetching products:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Initial data fetch
   useEffect(() => {
@@ -156,7 +141,19 @@ const fetchProducts = async (page = 1, filterParams = {}) => {
   // Handler for filter form submission
   const handleFilter = (e) => {
     e.preventDefault();
-    fetchProducts(1);
+    const filterParams = {
+      category: selectedCategory,
+      brand: selectedBrand,
+      search: searchTerm,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      sort: sortOption
+    };
+    // Remove empty values
+    const cleanParams = Object.fromEntries(
+      Object.entries(filterParams).filter(([_, v]) => v !== "")
+    );
+    fetchProducts(1, cleanParams);
   };
 
   // Handler for clearing all filters

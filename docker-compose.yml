@@ -70,7 +70,7 @@ services:
     restart: always
     environment:
       - SERVICE_PORT=3002
-      - JWT_SECRET=your_shared_jwt_secret
+      - JWT_SECRET=${JWT_SECRET}
       - DB_HOST=mysql
       - DB_USER=user
       - DB_PASSWORD=password
