@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Nginx Gateway
@@ -15,7 +15,6 @@ services:
       - frontend
     networks:
       - Ecommerce-Project-network
-
 
   # MySQL Database
   mysql:
@@ -39,10 +38,9 @@ services:
       timeout: 5s
       retries: 5
 
-
   # User Service
   user-service:
-    build: 
+    build:
       context: ./services/user-service
       dockerfile: Dockerfile
     container_name: Ecommerce-Project-user-service
@@ -60,10 +58,9 @@ services:
     networks:
       - Ecommerce-Project-network
 
-
   # Product Service
   product-service:
-    build: 
+    build:
       context: ./services/product-service
       dockerfile: Dockerfile
     container_name: Ecommerce-Project-product-service
@@ -74,7 +71,7 @@ services:
       - DB_HOST=mysql
       - DB_USER=user
       - DB_PASSWORD=password
-      - DB_NAME=NodeJS_midterm_db 
+      - DB_NAME=NodeJS_midterm_db
       - USER_SERVICE_URL=http://user-service:3001
     volumes:
       - ./services/product-service/public/uploads:/app/public/uploads
@@ -84,6 +81,27 @@ services:
     networks:
       - Ecommerce-Project-network
 
+  # Cart Service
+  cart-service:
+    build:
+      context: ./services/cart-service
+      dockerfile: Dockerfile
+    container_name: Ecommerce-Project-cart-service
+    restart: always
+    environment:
+      - SERVICE_PORT=3003
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_HOST=mysql
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=NodeJS_midterm_db
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - FRONTEND_URL=http://frontend:80
+    depends_on:
+      - mysql
+      - product-service
+    networks:
+      - Ecommerce-Project-network
 
   # Frontend React App
   frontend:
@@ -93,13 +111,12 @@ services:
     container_name: Ecommerce-Project-frontend
     restart: always
     environment:
-      - REACT_APP_API_URL=/api  # Use relative URL for API calls
+      - REACT_APP_API_URL=/api # Use relative URL for API calls
     networks:
       - Ecommerce-Project-network
 
-
 networks:
- Ecommerce-Project-network:
+  Ecommerce-Project-network:
     driver: bridge
 
 volumes:

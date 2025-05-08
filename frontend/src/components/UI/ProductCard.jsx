@@ -5,7 +5,8 @@ import { Col } from 'reactstrap';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDispatch } from 'react-redux';
-import { cartActions } from '../../slices/cartSlice';
+import { addItemToCart } from '../../slices/cartSlice';
+
 
 const ProductCard = ({item}) => {
   const dispatch = useDispatch();
@@ -72,20 +73,22 @@ if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/placehold
   const addToCart = () => {
     // If product has variants, redirect to product details instead of adding to cart directly
     if (hasVariants) {
-      toast.error('Please select a variant before adding to cart');
+      toast.warning('Please select a variant before adding to cart');
       return;
     }
 
-    dispatch(
-      cartActions.addItem({
-        id: item.id,
-        productName: item.productName,
-        price: item.price,
-        imgUrl: imageUrl,
-        quantity: 1,
+    dispatch(addItemToCart({
+      productId: item.id,
+      variantId: null,
+      quantity: 1
+    }))
+      .unwrap()
+      .then(() => {
+        toast.success('Product added to cart');
       })
-    );
-    toast.success('Product added successfully')
+      .catch((error) => {
+        toast.error(error.message || 'Failed to add product to cart');
+      });
   };
 
   return (

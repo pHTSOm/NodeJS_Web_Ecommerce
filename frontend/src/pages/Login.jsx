@@ -3,6 +3,8 @@ import { Container, Row, Col } from "reactstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthService } from "../services/api";
+import { useDispatch } from "react-redux";
+import { syncCartAfterLogin } from "../slices/cartSlice";
 import "../styles/auth.css";
 import Helmet from "../components/Helmet/Helmet";
 
@@ -10,8 +12,10 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirectPath, setRedirectPath] = useState(null);
   
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   useEffect(() => {
     // If user is already logged in, redirect to home
@@ -31,17 +35,41 @@ const Login = () => {
       setLoading(false);
       toast.success("Login successful");
       
-      setTimeout(() => {
-        if (AuthService.isAdmin()) {
-          navigate("/admin/products");
-        } else {
-          navigate("/");
-        }
-      }, 100);
+      handleLoginSuccess();
+      // setTimeout(() => {
+      //   if (AuthService.isAdmin()) {
+      //     navigate("/admin/products");
+      //   } else {
+      //     navigate("/");
+      //   }
+      // }, 100);
     } catch (error) {
       setLoading(false);
       toast.error(error.response?.data?.message || "Login failed");
     }
+  };
+
+  const handleLoginSuccess = () => {
+    // After successful login
+    dispatch(syncCartAfterLogin())
+      .unwrap()
+      .then(() => {
+        // Redirect user to desired page
+        if (AuthService.isAdmin()) {
+          navigate("/admin/products");
+        } else {
+          navigate(redirectPath || '/');
+        }      
+      })
+      .catch((error) => {
+        console.error('Failed to sync cart:', error);
+        // Still redirect, even if cart sync fails
+        if (AuthService.isAdmin()) {
+          navigate("/admin/products");
+        } else {
+          navigate(redirectPath || '/');
+        }
+      });
   };
 
   return (
