@@ -7,9 +7,9 @@ import "../styles/product-details.css";
 import { motion } from "framer-motion";
 import ProductsList from "../components/UI/ProductsList";
 import { useDispatch } from "react-redux";
-import { cartActions } from "../slices/cartSlice";
 import { toast } from "react-toastify";
-import { AuthService, ReviewService, ProductService } from '../services/api';      
+import { AuthService, ReviewService, ProductService } from '../services/api';    
+import { addItemToCart } from "../slices/cartSlice";  
 
 
 const ProductDetails = () => {
@@ -262,24 +262,20 @@ const addToCart = () => {
   }
   
   // Prepare cart item with variant information
-  const cartItem = {
-    id: product.id,
-    productName: product.productName,
-    price: selectedVariant 
-      ? parseFloat(product.price) + parseFloat(selectedVariant.additionalPrice) 
-      : product.price,
-    imgUrl: mainImage,
-    quantity: quantity,
-    // Include complete variant information
-    variant: selectedVariant ? {
-      id: selectedVariant.id,
-      name: selectedVariant.name,
-      additionalPrice: selectedVariant.additionalPrice
-    } : null
+  const itemData = {
+    productId: product.id,
+    variantId: selectedVariant ? selectedVariant.id : null,
+    quantity: quantity
   };
-  
-  dispatch(cartActions.addItem(cartItem));
-  toast.success("Product added to cart");
+
+  dispatch(addItemToCart(itemData))
+  .unwrap()
+  .then(() => {
+    toast.success("Product added to cart")
+  })
+  .catch((error) => {
+    toast.error(error.message || "Failed to add product to cart");
+  })
 };
   
   const handleReviewSubmit = async (e) => {

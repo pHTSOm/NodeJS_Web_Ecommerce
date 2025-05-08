@@ -209,6 +209,51 @@ export const ProductService = {
 };
 
 
+// Cart Service
+export const CartService = {
+  getCart: async () => {
+    const response = await API.get('/cart', { 
+      withCredentials: true // Important for cookies
+    });
+    return response.data;
+  },
+  
+  addItem: async (item) => {
+    const response = await API.post('/cart/items', item, { 
+      withCredentials: true 
+    });
+    return response.data;
+  },
+  
+  updateItemQuantity: async (itemId, quantity) => {
+    const response = await API.put(`/cart/items/${itemId}`, { quantity }, { 
+      withCredentials: true 
+    });
+    return response.data;
+  },
+  
+  removeItem: async (itemId) => {
+    const response = await API.delete(`/cart/items/${itemId}`, { 
+      withCredentials: true 
+    });
+    return response.data;
+  },
+  
+  clearCart: async () => {
+    const response = await API.delete('/cart/clear', { 
+      withCredentials: true 
+    });
+    return response.data;
+  },
+  
+  associateCart: async () => {
+    const response = await API.post('/cart/associate', {}, { 
+      withCredentials: true 
+    });
+    return response.data;
+  }
+};
+
 // Review Service
 export const ReviewService = {
   getReviewsByProduct: async (productId, params = {}) => {
