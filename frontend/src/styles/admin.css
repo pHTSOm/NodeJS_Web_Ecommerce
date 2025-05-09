@@ -1,0 +1,84 @@
+.admin-section {
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 200px);
+  }
+  
+  .admin-dashboard .card,
+  .admin-products .card,
+  .admin-product-edit .card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: none;
+    border-radius: 0.5rem;
+  }
+  
+  .admin-dashboard .card-header,
+  .admin-products .card-header,
+  .admin-product-edit .card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1rem 1.5rem;
+  }
+  
+  .stats-card {
+    transition: transform 0.2s;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .edit-btn, 
+  .delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-right: 8px;
+  }
+  
+  .edit-btn {
+    background-color: #0a1d37;
+    color: white;
+  }
+  
+  .delete-btn {
+    background-color: #ff3333;
+    color: white;
+  }
+  
+  .edit-btn:hover, 
+  .delete-btn:hover {
+    opacity: 0.8;
+  }
+  
+  .edit-btn a, 
+  .delete-btn a {
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .image-preview img {
+    object-fit: contain;
+    max-width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .admin-menu {
+      flex-wrap: wrap;
+    }
+    
+    .admin-menu-item {
+      margin: 5px;
+    }
+  }
