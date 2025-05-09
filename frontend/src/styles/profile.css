@@ -1,0 +1,122 @@
+/* frontend/src/styles/profile.css */
+.profile-section {
+  padding: 60px 0;
+  background: #f8f9fa;
+  min-height: 70vh;
+}
+
+.profile-sidebar {
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.profile-content {
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto;
+}
+
+.profile-nav .nav-link {
+  color: #333;
+  padding: 10px 15px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.profile-nav .nav-link:hover {
+  background-color: rgba(10, 29, 55, 0.05);
+}
+
+.profile-nav .nav-link.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.profile-nav .nav-link i {
+  width: 20px;
+}
+
+/* Address Card Styles */
+.address-card {
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.address-card:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.address-card .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.address-card .badge-default {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Form Styles */
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(10, 29, 55, 0.25);
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #0d2a4e;
+  border-color: #0d2a4e;
+}
+
+/* Responsive Styles */
+@media only screen and (max-width: 768px) {
+  .profile-section {
+    padding: 40px 0;
+  }
+  
+  .profile-sidebar {
+    margin-bottom: 20px;
+  }
+  
+  .profile-nav {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  
+  .profile-nav .nav-item {
+    flex: 1 0 auto;
+    min-width: 120px;
+  }
+  
+  .profile-nav .nav-link {
+    text-align: center;
+    padding: 8px 10px;
+    margin: 0 5px 10px;
+  }
+  
+  .profile-nav .nav-link i {
+    display: block;
+    width: 100%;
+    margin-bottom: 5px;
+    font-size: 1.2rem;
+  }
+}
