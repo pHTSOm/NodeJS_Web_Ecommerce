@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Form, FormGroup, Input, Label, Button, Spinner } from "reactstrap";
+import { 
+  Form, FormGroup, Input, Label, Button, Spinner, 
+  Table, Row, Col, Card, CardBody, CardHeader, Badge
+} from "reactstrap";
 import { toast } from "react-toastify";
 
 const ProductForm = ({
@@ -14,7 +17,7 @@ const ProductForm = ({
     description: "",
     category: "",
     price: "",
-    productImages: [],
+    productImage: [],
     isNew: false,
     isBestSeller: false,
     brand: "",
@@ -22,6 +25,15 @@ const ProductForm = ({
   });
 
   const [imagePreviews, setImagePreviews] = useState([]);
+  
+  // New state for variants
+  const [variants, setVariants] = useState([]);
+  const [newVariant, setNewVariant] = useState({
+    name: "",
+    description: "",
+    additionalPrice: 0,
+    stock: 0
+  });
 
   // If editing an existing product, populate the form
   useEffect(() => {
@@ -32,12 +44,23 @@ const ProductForm = ({
         description: product.description || "",
         category: product.category || "",
         price: product.price || "",
-        productImages: [], // Initialize as empty array, files won't be pre-filled
+        productImage: [], // Initialize as empty array, files won't be pre-filled
         isNew: product.isNew || false,
         isBestSeller: product.isBestSeller || false,
         brand: product.brand || "",
         tags: product.tags || "",
       });
+
+      // Load product variants if they exist
+      if (product.ProductVariants && product.ProductVariants.length > 0) {
+        setVariants(product.ProductVariants.map(variant => ({
+          id: variant.id,
+          name: variant.name,
+          description: variant.description,
+          additionalPrice: variant.additionalPrice,
+          stock: variant.stock
+        })));
+      }
 
       // Process product images for preview
       if (product.imgUrl) {
@@ -95,9 +118,9 @@ const ProductForm = ({
 
     if (type === "file") {
       // Handle file input
-      if (name === "productImages" && files) {
+      if (name === "productImage" && files) {
         const selectedFiles = Array.from(files);
-        setFormData({ ...formData, productImages: selectedFiles });
+        setFormData({ ...formData, productImage: selectedFiles });
         
         // Generate new previews
         setImagePreviews([]); // Clear old previews
@@ -117,12 +140,204 @@ const ProductForm = ({
     }
   };
 
+  // Handle new variant input changes
+  const handleVariantChange = (e) => {
+    const { name, value } = e.target;
+    setNewVariant({
+      ...newVariant,
+      [name]: name === 'additionalPrice' || name === 'stock' ? parseFloat(value) : value
+    });
+  };
+
+  // Add new variant to array
+  const addVariant = () => {
+    if (!newVariant.name) {
+      toast.error("Variant name is required");
+      return;
+    }
+    
+    setVariants([...variants, { ...newVariant, id: Date.now() }]);
+    setNewVariant({
+      name: "",
+      description: "",
+      additionalPrice: 0,
+      stock: 0
+    });
+  };
+
+  // Remove variant from array
+  const removeVariant = (id) => {
+    setVariants(variants.filter(v => v.id !== id));
+  };
+
+  // Generate default variants based on category
+  const generateDefaultVariants = () => {
+    const category = formData.category;
+    if (!category) {
+      toast.error("Please select a category first");
+      return;
+    }
+
+    let newVariants = [];
+    
+    switch (category) {
+      case "CPU":
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "Base Model",
+            description: "Default configuration",
+            additionalPrice: 0,
+            stock: 20
+          },
+          {
+            id: Date.now() + 1,
+            name: "OC Edition",
+            description: "Factory overclocked for better performance",
+            additionalPrice: 49.99,
+            stock: 15
+          }
+        ];
+        break;
+      case "GPU":
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "Standard Edition",
+            description: "Reference design",
+            additionalPrice: 0,
+            stock: 20
+          },
+          {
+            id: Date.now() + 1,
+            name: "OC Edition",
+            description: "Overclocked with enhanced cooling",
+            additionalPrice: 79.99,
+            stock: 15
+          },
+          {
+            id: Date.now() + 2,
+            name: "Liquid Cooled",
+            description: "Integrated AIO liquid cooling for maximum performance",
+            additionalPrice: 149.99,
+            stock: 10
+          }
+        ];
+        break;
+      case "Storage":
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "1TB",
+            description: "Standard 1TB capacity",
+            additionalPrice: 0,
+            stock: 30
+          },
+          {
+            id: Date.now() + 1,
+            name: "2TB",
+            description: "Expanded 2TB capacity",
+            additionalPrice: 100.0,
+            stock: 20
+          }
+        ];
+        break;
+      case "Memory":
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "32GB (2x16GB) 3200MHz",
+            description: "Standard speed dual-channel kit",
+            additionalPrice: 0,
+            stock: 20
+          },
+          {
+            id: Date.now() + 1,
+            name: "32GB (2x16GB) 3600MHz",
+            description: "High-speed dual-channel kit",
+            additionalPrice: 29.99,
+            stock: 30
+          }
+        ];
+        break;
+      case "Motherboard":
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "Standard Edition",
+            description: "Basic configuration with standard warranty",
+            additionalPrice: 0,
+            stock: 35
+          },
+          {
+            id: Date.now() + 1,
+            name: "Premium Bundle",
+            description: "Includes premium accessories and extended warranty",
+            additionalPrice: 39.99,
+            stock: 15
+          }
+        ];
+        break;
+      case "Laptop":
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "Core i5 / 8GB / 256GB",
+            description: "Intel Core i5-1240P, 8GB LPDDR5, 256GB SSD, FHD+ Display",
+            additionalPrice: 0,
+            stock: 15
+          },
+          {
+            id: Date.now() + 1,
+            name: "Core i7 / 16GB / 512GB",
+            description: "Intel Core i7-1260P, 16GB LPDDR5, 512GB SSD, FHD+ Display",
+            additionalPrice: 400.0,
+            stock: 10
+          },
+          {
+            id: Date.now() + 2,
+            name: "Core i7 / 32GB / 1TB",
+            description: "Intel Core i7-1260P, 32GB LPDDR5, 1TB SSD, UHD+ Touch Display",
+            additionalPrice: 800.0,
+            stock: 5
+          }
+        ];
+        break;
+      default:
+        newVariants = [
+          {
+            id: Date.now(),
+            name: "Basic Edition",
+            description: "Standard configuration",
+            additionalPrice: 0,
+            stock: 30
+          },
+          {
+            id: Date.now() + 1,
+            name: "Deluxe Edition",
+            description: "Enhanced features and premium support",
+            additionalPrice: 49.99,
+            stock: 20
+          }
+        ];
+    }
+    
+    setVariants(newVariants);
+    toast.info(`Added default variants for ${category}`);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
     // Basic validation
     if (!formData.productName || !formData.category || !formData.price) {
       toast.error("Please fill all required fields!");
+      return;
+    }
+    
+    // Validate at least one variant
+    if (variants.length === 0) {
+      toast.error("Please add at least one product variant!");
       return;
     }
     
@@ -140,20 +355,22 @@ const ProductForm = ({
     submitData.append("isNew", formData.isNew ? "true" : "false");
     submitData.append("isBestSeller", formData.isBestSeller ? "true" : "false");
     
+    // Add variants as JSON
+    submitData.append("variants", JSON.stringify(variants));
+    
     // Add images if any were selected
-    if (formData.productImages && formData.productImages.length > 0) {
-      formData.productImages.forEach(file => {
+    if (formData.productImage && formData.productImage.length > 0) {
+      formData.productImage.forEach(file => {
         submitData.append("productImage", file);
       });
     }
     
     // Debug log what we're sending
     console.log("Form data being submitted:");
-    for (let [key, value] of submitData.entries()) {
-      console.log(`${key}: ${value instanceof File ? `File: ${value.name}` : value}`);
-    }
+    console.log("Variants:", variants);
     
     // Submit the form
+    console.log(Array.from(submitData.entries()))
     onSubmit(submitData);
   };
 
@@ -204,7 +421,7 @@ const ProductForm = ({
           <div className="row">
             <div className="col-md-6">
               <FormGroup>
-                <Label for="price">Price*</Label>
+                <Label for="price">Base Price*</Label>
                 <Input
                   type="number"
                   name="price"
@@ -307,11 +524,11 @@ const ProductForm = ({
 
         <div className="col-md-4">
           <FormGroup>
-            <Label for="productImages">Product Images</Label>
+            <Label for="productImage">Product Images</Label>
             <Input
               type="file"
-              name="productImages"
-              id="productImages"
+              name="productImage"
+              id="productImage"
               accept="image/*"
               multiple
               onChange={handleChange}
@@ -342,7 +559,7 @@ const ProductForm = ({
               </div>
             )}
 
-            {product && formData.productImages && formData.productImages.length === 0 && (
+            {product && formData.productImage && formData.productImage.length === 0 && (
               <small className="text-muted">
                 Leave empty to keep current images
               </small>
@@ -350,6 +567,125 @@ const ProductForm = ({
           </FormGroup>
         </div>
       </div>
+
+      {/* Product Variants Section */}
+      <Card className="mt-4 mb-4">
+        <CardHeader className="d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">Product Variants</h5>
+          {formData.category && (
+            <Button color="secondary" onClick={generateDefaultVariants} type="button">
+              Generate Default Variants
+            </Button>
+          )}
+        </CardHeader>
+        <CardBody>
+          <p className="text-muted mb-3">
+            Add variants of this product with different prices and inventory levels.
+            Each product must have at least one variant.
+          </p>
+          
+          {/* Current Variants Table */}
+          {variants.length > 0 && (
+            <div className="table-responsive mb-4">
+              <Table bordered>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Additional Price</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {variants.map((variant) => (
+                    <tr key={variant.id}>
+                      <td>{variant.name}</td>
+                      <td>{variant.description}</td>
+                      <td>${parseFloat(variant.additionalPrice).toFixed(2)}</td>
+                      <td>{variant.stock}</td>
+                      <td>
+                        <Button
+                          color="danger"
+                          size="sm"
+                          onClick={() => removeVariant(variant.id)}
+                        >
+                          Remove
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+          
+          {/* Add New Variant Form */}
+          <Row>
+            <Col md="3">
+              <FormGroup>
+                <Label for="variantName">Variant Name*</Label>
+                <Input
+                  type="text"
+                  name="name"
+                  id="variantName"
+                  value={newVariant.name}
+                  onChange={handleVariantChange}
+                  placeholder="e.g. 1TB Model"
+                />
+              </FormGroup>
+            </Col>
+            <Col md="4">
+              <FormGroup>
+                <Label for="variantDescription">Description</Label>
+                <Input
+                  type="text"
+                  name="description"
+                  id="variantDescription"
+                  value={newVariant.description}
+                  onChange={handleVariantChange}
+                  placeholder="Brief description of this variant"
+                />
+              </FormGroup>
+            </Col>
+            <Col md="2">
+              <FormGroup>
+                <Label for="variantPrice">Additional Price</Label>
+                <Input
+                  type="number"
+                  name="additionalPrice"
+                  id="variantPrice"
+                  value={newVariant.additionalPrice}
+                  onChange={handleVariantChange}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </FormGroup>
+            </Col>
+            <Col md="2">
+              <FormGroup>
+                <Label for="variantStock">Stock</Label>
+                <Input
+                  type="number"
+                  name="stock"
+                  id="variantStock"
+                  value={newVariant.stock}
+                  onChange={handleVariantChange}
+                  placeholder="0"
+                  min="0"
+                  step="1"
+                />
+              </FormGroup>
+            </Col>
+            <Col md="1" className="d-flex align-items-end">
+              <Button color="primary" onClick={addVariant} type="button" className="mb-3">
+                Add
+              </Button>
+            </Col>
+          </Row>
+        </CardBody>
+      </Card>
 
       <div className="d-flex justify-content-end mt-4">
         <Button
