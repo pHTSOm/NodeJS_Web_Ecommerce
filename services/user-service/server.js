@@ -73,4 +73,4 @@ app.listen(PORT, async () => {
   } catch (error) {
     console.error('Database initialization failed:', error);
   }
-});   
+});
