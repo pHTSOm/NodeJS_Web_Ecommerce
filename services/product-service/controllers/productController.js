@@ -121,38 +121,48 @@ exports.getAllProducts = async (req, res) => {
 // Get product by ID
 exports.getProductById = async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id, {
+    console.log(`GET product by ID: ${req.params.id} (type: ${typeof req.params.id})`);
+    
+    // Convert ID to number if it's a string
+    const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+    
+    const product = await Product.findByPk(productId, {
       include: [
         {
           model: ProductVariant,
-          attributes: [
-            "id",
-            "name",
-            "description",
-            "additionalPrice",
-            "stock",
-            "sku",
-          ],
-        },
-      ],
+          attributes: ['id', 'name', 'description', 'additionalPrice', 'stock', 'sku']
+        }
+      ]
     });
 
     if (!product) {
+      console.log(`Product with ID ${productId} not found`);
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found'
       });
     }
-
+    
+    console.log(`Found product: ${product.productName}`);
+    console.log('Product imgUrl:', product.imgUrl);
+    
     res.json({
       success: true,
-      product,
+      product
     });
   } catch (error) {
-    console.error("Error getting product:", error);
+    console.error('Error getting product:', error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: 'Server error',
+      error: error.message
     });
   }
 };
@@ -225,110 +235,105 @@ exports.getProductsByCategory = async (req, res) => {
 };
 
 // Create a new product
-exports.createProduct = async (req, res) => {
+exports.createProduct = async (req, res) => {  
   // Use multer middleware for file upload
-  upload(req, res, async function (err) {
+  upload(req, res, async function(err) {
     if (err) {
-      console.error("File upload error:", err);
       return res.status(400).json({
         success: false,
-        message: err.message,
+        message: err.message
       });
     }
-
+    
     try {
-      // Log the request for debugging
-      console.log("Request body:", req.body);
-      console.log("Uploaded files:", req.files);
-
-      const {
-        productName,
-        shortDesc,
-        description,
-        category,
-        price,
-        brand,
-        stock,
-        isNew,
-        isBestSeller,
-        tags,
-        variants,
-      } = req.body;
-
-      // Get the image URL or path
-      const imgUrls =
-        req.files && req.files.productImage
-          ? req.files.productImage.map(
-              (file) => `/uploads/products/${file.filename}`
-            )
-          : [];
-
-      // Basic validation
-      if (!productName || !category || !price) {
-        return res.status(400).json({
-          success: false,
-          message: "Missing required fields",
-        });
+      console.log('Create product request received');
+      console.log('Request body:', req.body);
+      console.log('Files:', req.files || req.file || 'No files uploaded');
+      
+      // File was uploaded successfully, now create product in database
+      const { productName, shortDesc, description, category, price, brand, stock, isNew, isBestSeller, tags } = req.body;
+      
+      // Get image URLs
+      let imgUrls = [];
+      
+      // Handle multiple files (if using multer .array())
+      if (req.files && req.files.length > 0) {
+        imgUrls = req.files.map(file => `/uploads/products/${file.filename}`);
+        console.log('Multiple files processed:', imgUrls);
+      } 
+      // Handle single file (if using multer .single())
+      else if (req.file) {
+        imgUrls.push(`/uploads/products/${req.file.filename}`);
+        console.log('Single file processed:', imgUrls);
       }
-
+      
       // Create product in database
       const product = await Product.create({
         productName,
         shortDesc,
         description,
         category,
-        price: parseFloat(price),
+        price,
         brand,
-        stock: stock ? parseInt(stock) : 0,
-        imgUrl: JSON.stringify(imgUrls),
-        isNew: isNew === "true",
-        isBestSeller: isBestSeller === "true",
-        tags,
+        stock: stock || 0,
+        imgUrl: JSON.stringify(imgUrls.length > 0 ? imgUrls : [null]),
+        isNew: isNew === 'true',
+        isBestSeller: isBestSeller === 'true',
+        tags
       });
-
+      
+      console.log('Product created:', product.id);
+      
       // Handle variants if provided
-      if (variants && typeof variants === "string") {
+      if (req.body.variants && typeof req.body.variants === 'string') {
         try {
-          const parsedVariants = JSON.parse(variants);
-          console.log("Parsed variants:", parsedVariants);
-
-          if (Array.isArray(parsedVariants)) {
-            // Create product variants
-            for (const variant of parsedVariants) {
+          const variants = JSON.parse(req.body.variants);
+          console.log('Processing variants:', variants);
+          
+          if (Array.isArray(variants)) {
+            for (const variant of variants) {
               await ProductVariant.create({
                 productId: product.id,
                 name: variant.name,
                 description: variant.description || variant.name,
-                additionalPrice: parseFloat(variant.additionalPrice) || 0,
-                stock: parseInt(variant.stock) || 0,
-                sku: variant.sku || `${product.id}-${Date.now()}`,
+                additionalPrice: variant.additionalPrice || 0,
+                stock: variant.stock || 0,
+                sku: variant.sku || `${product.id}-${variant.name}`
               });
+              console.log('Created variant:', variant.name);
             }
-            console.log(
-              `Created ${parsedVariants.length} variants for product #${product.id}`
-            );
           }
         } catch (parseError) {
-          console.error("Error parsing variants:", parseError);
+          console.error('Error parsing variants:', parseError);
         }
-      } else {
-        console.log("No variants provided or invalid format");
       }
+
+      // Fetch the complete product with variants to return
+      const createdProduct = await Product.findByPk(product.id, {
+        include: [
+          {
+            model: ProductVariant,
+            attributes: ['id', 'name', 'additionalPrice', 'stock', 'sku']
+          }
+        ]
+      });
 
       res.status(201).json({
         success: true,
-        message: "Product created successfully",
-        product,
+        message: 'Product created successfully',
+        product: createdProduct
       });
     } catch (error) {
-      console.error("Error creating product:", error);
+      console.error('Error creating product:', error);
       res.status(500).json({
         success: false,
-        message: "Server error: " + error.message,
+        message: 'Server error',
+        error: error.message
       });
     }
   });
 };
+
 
 // Update product
 exports.updateProduct = async (req, res) => {
