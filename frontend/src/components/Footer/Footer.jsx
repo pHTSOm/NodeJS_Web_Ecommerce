@@ -13,7 +13,7 @@ const Footer = () => {
           <Col lg='4' className='mb-4' md='6'>
             <div className="logo">
               <div>
-                <h1 className='text-white'>For Money</h1>
+                <h1 className='text-white'>Frontiers</h1>
               </div>
             </div>
             <p className="footer__text mt-4">
@@ -28,19 +28,19 @@ const Footer = () => {
               <h4 className="quick__links-title">Top Categories</h4>
               <ListGroup>
                 <ListGroupItem className='ps-0 border-0'>
-                  <Link to='#'>Mobile Phones</Link>
+                  <Link to='#'>Laptop</Link>
                 </ListGroupItem>
 
                 <ListGroupItem className='ps-0 border-0'>
-                  <Link to='#'>Games</Link>
+                  <Link to='#'>CPUs</Link>
                 </ListGroupItem>
 
                 <ListGroupItem className='ps-0 border-0'>
-                  <Link to='#'>Consoles</Link>
+                  <Link to='#'>RAMs</Link>
                 </ListGroupItem>
 
                 <ListGroupItem className='ps-0 border-0'>
-                  <Link to='#'>Watch</Link>
+                  <Link to='#'>Motherboards</Link>
                 </ListGroupItem>
               </ListGroup>
             </div>
