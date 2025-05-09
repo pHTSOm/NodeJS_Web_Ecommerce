@@ -7,62 +7,55 @@ import { toast } from 'react-toastify';
 import { useDispatch } from 'react-redux';
 import { addItemToCart } from '../../slices/cartSlice';
 
-
 const ProductCard = ({item}) => {
   const dispatch = useDispatch();
 
-  // Handle image URL - parse JSON if it's a string
-  let imageUrl = 'placeholder.png'; // Default fallback image
-  
-  try {
-    // Handle JSON string or array
-    if (typeof item.imgUrl === 'string') {
-      // Check if it's a JSON string array
-      if (item.imgUrl.startsWith('[')) {
+  // Improved image URL handling
+  const getImageUrl = (imgUrl) => {
+    // Default fallback image
+    if (!imgUrl) return '/placeholder.png';
+    
+    try {
+      // Parse JSON string if needed
+      let imageSource = imgUrl;
+      
+      if (typeof imgUrl === 'string' && imgUrl.startsWith('[')) {
         try {
-          const images = JSON.parse(item.imgUrl);
-          if (images && images.length > 0) {
-            imageUrl = images[0];
-          }
-        } catch (err) {
-          // Not valid JSON, use as-is
-          imageUrl = item.imgUrl;
+          const parsed = JSON.parse(imgUrl);
+          // Use first image from array if available
+          imageSource = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
+        } catch (e) {
+          console.error('Failed to parse image JSON:', e);
+          imageSource = imgUrl; // Keep as is if parsing fails
         }
-      } else {
-        // It's a regular string URL
-        imageUrl = item.imgUrl;
+      } else if (Array.isArray(imgUrl) && imgUrl.length > 0) {
+        imageSource = imgUrl[0]; // Use first image from array
       }
-    } else if (Array.isArray(item.imgUrl) && item.imgUrl.length > 0) {
-      // It's already an array
-      imageUrl = item.imgUrl[0];
+      
+      // Handle null or empty string
+      if (!imageSource) return '/placeholder.png';
+      
+      // Handle full URLs
+      if (imageSource.startsWith('http')) {
+        return imageSource;
+      }
+      
+      // Format path for local images
+      if (imageSource.startsWith('/uploads/')) {
+        return imageSource;
+      } else if (imageSource.startsWith('/products/')) {
+        return `/uploads${imageSource}`;
+      } else {
+        return `/uploads/products/${imageSource.replace(/^\//, '')}`;
+      }
+    } catch (error) {
+      console.error('Error processing image URL:', error);
+      return '/placeholder.png';
     }
-  } catch (error) {
-    console.error("Error parsing product image URL:", error);
-  }
+  };
 
-  // Add server prefix if needed
-  
-if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/placeholder')) {
-  // Check for duplicate uploads in path
-  if (imageUrl.startsWith('/uploads/')) {
-    // Already has uploads prefix, use as is
-    imageUrl = imageUrl;
-  } 
-  // Handle path starting with /products
-  else if (imageUrl.startsWith('/products/')) {
-    imageUrl = `/uploads${imageUrl}`;
-  } 
-  // Handle other formats
-  else {
-    // Add appropriate prefix based on if it already has a leading slash
-    imageUrl = imageUrl.startsWith('/') 
-      ? `/uploads${imageUrl}` 
-      : `/uploads/products/${imageUrl}`;
-  }
-}
-
-// Debug log to check final URL
-  console.log("Final image URL for", item.productName, ":", imageUrl);
+  const imageUrl = getImageUrl(item.imgUrl);
+  console.log(`Product ${item.id}: ${item.productName} - Image URL: ${imageUrl}`);
 
   // Format price to display with 2 decimal places
   const formattedPrice = parseFloat(item.price).toFixed(2);
