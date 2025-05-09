@@ -4,64 +4,60 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 
-// Setup passport configuration
-module.exports = () => {
-  // Google OAuth Strategy
+module.exports = function() {
+  // Configure Google Strategy
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: '/api/auth/google/callback',
     proxy: true
-  }, 
-  async (accessToken, refreshToken, profile, done) => {
+  },
+  async function(accessToken, refreshToken, profile, done) {
     try {
-      // Check if user exists in database
-      let user = await User.findOne({ 
-        where: { 
-          email: profile.emails[0].value 
-        } 
-      });
+      console.log('Google auth callback triggered');
+      console.log('Profile:', JSON.stringify(profile, null, 2));
       
-      // If user doesn't exist, create one
-      if (!user) {
-        user = await User.create({
-          email: profile.emails[0].value,
-          name: profile.displayName,
-          // Generate a random password for OAuth users
-          password: Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12),
-          role: 'user' // Default role
-        });
+      // Check if email is provided by Google
+      if (!profile.emails || !profile.emails.length) {
+        return done(new Error('No email provided from Google'));
       }
       
-      // Return user with token
+      const email = profile.emails[0].value;
+      const name = profile.displayName || `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
+      
+      console.log(`Processing OAuth login for: ${email}, name: ${name}`);
+      
+      // Check if user exists
+      let user = await User.findOne({ where: { email } });
+      
+      if (!user) {
+        console.log(`Creating new user for: ${email}`);
+        // Create new user if doesn't exist
+        user = await User.create({
+          email,
+          name,
+          // Generate a secure random password since we won't use it
+          password: Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10),
+          role: 'user'
+        });
+      } else {
+        console.log(`Found existing user: ${user.id}`);
+      }
+      
+      // Generate token
       const token = generateToken(user.id);
       
+      // Return user data with token
       return done(null, {
         id: user.id,
-        email: user.email,
         name: user.name,
+        email: user.email,
         role: user.role,
         token
       });
     } catch (error) {
-      return done(error, null);
+      console.error('Error in Google auth callback:', error);
+      return done(error);
     }
   }));
-  
-  // Serialize user to session
-  passport.serializeUser((user, done) => {
-    done(null, user.id);
-  });
-  
-  // Deserialize user from session
-  passport.deserializeUser(async (id, done) => {
-    try {
-      const user = await User.findByPk(id, {
-        attributes: { exclude: ['password'] }
-      });
-      done(null, user);
-    } catch (error) {
-      done(error, null);
-    }
-  });
 };

@@ -13,27 +13,54 @@ router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password', userController.resetPassword);
 
 // Google OAuth routes
-router.get('/google',
+router.get('/google', 
+  (req, res, next) => {
+    console.log('Google auth route hit');
+    next();
+  },
   passport.authenticate('google', { 
     scope: ['profile', 'email'],
-    session: false 
+    session: false
   })
 );
 
 router.get('/google/callback',
+  (req, res, next) => {
+    console.log('Google callback route hit');
+    next();
+  },
   passport.authenticate('google', { 
-    failureRedirect: '/login',
+    failureRedirect: '/login?error=google_auth_failed',
     session: false
   }),
   (req, res) => {
-    // Create and send JWT token
-    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${req.user.token}&user=${encodeURIComponent(JSON.stringify({
+    console.log('Google auth successful, redirecting...');
+    // Create front-end URL with token and user info
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost';
+    const userInfo = encodeURIComponent(JSON.stringify({
       id: req.user.id,
       name: req.user.name,
       email: req.user.email,
       role: req.user.role
-    }))}`);
+    }));
+    
+    // Redirect to frontend auth success page
+    res.redirect(`${frontendUrl}/auth/success?token=${req.user.token}&user=${userInfo}`);
   }
 );
+
+// Test route for debugging
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Auth routes working!',
+    googleConfig: {
+      clientIdSet: !!process.env.GOOGLE_CLIENT_ID,
+      clientSecretSet: !!process.env.GOOGLE_CLIENT_SECRET,
+      callbackUrl: '/api/auth/google/callback',
+      frontendUrl: process.env.FRONTEND_URL || 'http://localhost'
+    }
+  });
+});
 
 module.exports = router;
