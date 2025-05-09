@@ -50,6 +50,8 @@ services:
       DB_USER: user
       DB_PASSWORD: password
       DB_NAME: NodeJS_midterm_db
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       JWT_SECRET: ${JWT_SECRET}
       SERVICE_PORT: 3001
     depends_on:

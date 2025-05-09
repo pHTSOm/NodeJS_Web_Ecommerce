@@ -1,16 +1,16 @@
-const Product = require('../models/Product');
-const ProductVariant = require('../models/ProductVariant');
-const upload = require('../utils/fileUpload');
-const path = require('path');
-const fs = require('fs');
-const { Op } = require('sequelize');
+const Product = require("../models/Product");
+const ProductVariant = require("../models/ProductVariant");
+const upload = require("../utils/fileUpload");
+const path = require("path");
+const fs = require("fs");
+const { Op } = require("sequelize");
 
 // Get all products
 exports.getAllProducts = async (req, res) => {
   try {
     console.log("GET /products request received");
     console.log("Query params:", req.query);
-    
+
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
@@ -33,50 +33,50 @@ exports.getAllProducts = async (req, res) => {
     if (req.query.minPrice && req.query.maxPrice) {
       whereClause.price = {
         [Op.gte]: parseFloat(req.query.minPrice),
-        [Op.lte]: parseFloat(req.query.maxPrice)
+        [Op.lte]: parseFloat(req.query.maxPrice),
       };
     } else if (req.query.minPrice) {
       whereClause.price = {
-        [Op.gte]: parseFloat(req.query.minPrice)
+        [Op.gte]: parseFloat(req.query.minPrice),
       };
     } else if (req.query.maxPrice) {
       whereClause.price = {
-        [Op.lte]: parseFloat(req.query.maxPrice)
+        [Op.lte]: parseFloat(req.query.maxPrice),
       };
     }
 
     // Search by name
     if (req.query.search) {
       whereClause.productName = {
-        [Op.like]: `%${req.query.search}%`
+        [Op.like]: `%${req.query.search}%`,
       };
     }
 
     // New or bestseller filters
-    if (req.query.isNew === 'true') {
+    if (req.query.isNew === "true") {
       whereClause.isNew = true;
     }
 
-    if (req.query.isBestSeller === 'true') {
+    if (req.query.isBestSeller === "true") {
       whereClause.isBestSeller = true;
     }
 
     // Sorting
-    let order = [['createdAt', 'DESC']];
-    
+    let order = [["createdAt", "DESC"]];
+
     if (req.query.sort) {
       switch (req.query.sort) {
-        case 'price_asc':
-          order = [['price', 'ASC']];
+        case "price_asc":
+          order = [["price", "ASC"]];
           break;
-        case 'price_desc':
-          order = [['price', 'DESC']];
+        case "price_desc":
+          order = [["price", "DESC"]];
           break;
-        case 'name_asc':
-          order = [['productName', 'ASC']];
+        case "name_asc":
+          order = [["productName", "ASC"]];
           break;
-        case 'name_desc':
-          order = [['productName', 'DESC']];
+        case "name_desc":
+          order = [["productName", "DESC"]];
           break;
       }
     }
@@ -90,9 +90,9 @@ exports.getAllProducts = async (req, res) => {
       include: [
         {
           model: ProductVariant,
-          attributes: ['id', 'name', 'additionalPrice', 'stock']
-        }
-      ]
+          attributes: ["id", "name", "additionalPrice", "stock"],
+        },
+      ],
     });
 
     // Calculate pagination info
@@ -106,14 +106,14 @@ exports.getAllProducts = async (req, res) => {
         totalPages,
         currentPage: page,
         hasNext: page < totalPages,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
-    console.error('Error getting products:', error);
+    console.error("Error getting products:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
@@ -125,27 +125,34 @@ exports.getProductById = async (req, res) => {
       include: [
         {
           model: ProductVariant,
-          attributes: ['id', 'name', 'description', 'additionalPrice', 'stock', 'sku']
-        }
-      ]
+          attributes: [
+            "id",
+            "name",
+            "description",
+            "additionalPrice",
+            "stock",
+            "sku",
+          ],
+        },
+      ],
     });
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found'
+        message: "Product not found",
       });
     }
-    
+
     res.json({
       success: true,
-      product
+      product,
     });
   } catch (error) {
-    console.error('Error getting product:', error);
+    console.error("Error getting product:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
@@ -153,27 +160,27 @@ exports.getProductById = async (req, res) => {
 // Get products by category
 exports.getProductsByCategory = async (req, res) => {
   try {
-    // Pagination 
+    // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const offset = (page - 1) * limit;
 
     // Sorting
-    let order = [['createdAt', 'DESC']];
+    let order = [["createdAt", "DESC"]];
 
     if (req.query.sort) {
       switch (req.query.sort) {
-        case 'price_asc':
-          order = [['price', 'ASC']];
+        case "price_asc":
+          order = [["price", "ASC"]];
           break;
-        case 'price_desc':
-          order = [['price', 'DESC']];
+        case "price_desc":
+          order = [["price", "DESC"]];
           break;
-        case 'name_asc':
-          order = [['productName', 'ASC']];
+        case "name_asc":
+          order = [["productName", "ASC"]];
           break;
-        case 'name_desc':
-          order = [['productName', 'DESC']];
+        case "name_desc":
+          order = [["productName", "DESC"]];
           break;
       }
     }
@@ -181,7 +188,7 @@ exports.getProductsByCategory = async (req, res) => {
     // Fetch products with count
     const { count, rows: products } = await Product.findAndCountAll({
       where: {
-        category: req.params.category
+        category: req.params.category,
       },
       order,
       limit,
@@ -189,9 +196,9 @@ exports.getProductsByCategory = async (req, res) => {
       include: [
         {
           model: ProductVariant,
-          attributes: ['id', 'name', 'additionalPrice', 'stock']
-        }
-      ]
+          attributes: ["id", "name", "additionalPrice", "stock"],
+        },
+      ],
     });
 
     // Calculate pagination info
@@ -205,82 +212,119 @@ exports.getProductsByCategory = async (req, res) => {
         totalPages,
         currentPage: page,
         hasNext: page < totalPages,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
-    console.error('Error getting products by category:', error);
+    console.error("Error getting products by category:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
 // Create a new product
-exports.createProduct = async (req, res) => {  
+exports.createProduct = async (req, res) => {
   // Use multer middleware for file upload
-  upload(req, res, async function(err) {
+  upload(req, res, async function (err) {
     if (err) {
+      console.error("File upload error:", err);
       return res.status(400).json({
         success: false,
-        message: err.message
+        message: err.message,
       });
     }
-    
+
     try {
-      // File was uploaded successfully, now create product in database
-      const { productName, shortDesc, description, category, price, brand, stock, isNew, isBestSeller, tags } = req.body;
-      
-      // Get the image URL or path
-      const imgUrl = req.file ? `/uploads/products/${req.file.filename}` : null;
-      
-      // Create product in database
-      const product = await Product.create({
+      // Log the request for debugging
+      console.log("Request body:", req.body);
+      console.log("Uploaded files:", req.files);
+
+      const {
         productName,
         shortDesc,
         description,
         category,
         price,
         brand,
-        stock: stock || 0,
-        imgUrl: JSON.stringify([imgUrl]),
-        isNew: isNew === 'true',
-        isBestSeller: isBestSeller === 'true',
-        tags
+        stock,
+        isNew,
+        isBestSeller,
+        tags,
+        variants,
+      } = req.body;
+
+      // Get the image URL or path
+      const imgUrls =
+        req.files && req.files.productImage
+          ? req.files.productImage.map(
+              (file) => `/uploads/products/${file.filename}`
+            )
+          : [];
+
+      // Basic validation
+      if (!productName || !category || !price) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields",
+        });
+      }
+
+      // Create product in database
+      const product = await Product.create({
+        productName,
+        shortDesc,
+        description,
+        category,
+        price: parseFloat(price),
+        brand,
+        stock: stock ? parseInt(stock) : 0,
+        imgUrl: JSON.stringify(imgUrls),
+        isNew: isNew === "true",
+        isBestSeller: isBestSeller === "true",
+        tags,
       });
-      
+
       // Handle variants if provided
-      if (req.body.variants && typeof req.body.variants === 'string') {
+      if (variants && typeof variants === "string") {
         try {
-          const variants = JSON.parse(req.body.variants);
-          if (Array.isArray(variants)) {
-            for (const variant of variants) {
+          const parsedVariants = JSON.parse(variants);
+          console.log("Parsed variants:", parsedVariants);
+
+          if (Array.isArray(parsedVariants)) {
+            // Create product variants
+            for (const variant of parsedVariants) {
               await ProductVariant.create({
                 productId: product.id,
                 name: variant.name,
                 description: variant.description || variant.name,
-                additionalPrice: variant.additionalPrice || 0,
-                stock: variant.stock || 0,
-                sku: variant.sku || `${product.id}-${variant.name}`
+                additionalPrice: parseFloat(variant.additionalPrice) || 0,
+                stock: parseInt(variant.stock) || 0,
+                sku: variant.sku || `${product.id}-${Date.now()}`,
               });
             }
+            console.log(
+              `Created ${parsedVariants.length} variants for product #${product.id}`
+            );
           }
         } catch (parseError) {
-          console.error('Error parsing variants:', parseError);
+          console.error("Error parsing variants:", parseError);
         }
+      } else {
+        console.log("No variants provided or invalid format");
       }
 
       res.status(201).json({
         success: true,
-        message: 'Product created successfully',
-        product
+        message: "Product created successfully",
+        product,
       });
     } catch (error) {
-      console.error('Error creating product:', error);
+      console.error("Error creating product:", error);
       res.status(500).json({
         success: false,
-        message: 'Server error'
+        message: "Server error: " + error.message,
       });
     }
   });
@@ -288,29 +332,44 @@ exports.createProduct = async (req, res) => {
 
 // Update product
 exports.updateProduct = async (req, res) => {
-  upload(req, res, async function(err) {
+  upload(req, res, async function (err) {
     if (err) {
       return res.status(400).json({
         success: false,
-        message: err.message
+        message: err.message,
       });
     }
-    
+
     try {
       const product = await Product.findByPk(req.params.id);
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: 'Product not found'
+          message: "Product not found",
         });
       }
-      
+
       // Update product fields
-      const { productName, shortDesc, description, category, price, brand, stock, isNew, isBestSeller, tags } = req.body;
-      
+      const {
+        productName,
+        shortDesc,
+        description,
+        category,
+        price,
+        brand,
+        stock,
+        isNew,
+        isBestSeller,
+        tags,
+      } = req.body;
+
       // Only update imgUrl if a new file was uploaded
       let imgUrl = product.imgUrl;
-      if (req.file) {
+      if (
+        req.files &&
+        req.files.productImage &&
+        req.files.productImage.length > 0
+      ) {
         // Handle the case where imgUrl is a JSON string
         let images = [];
         try {
@@ -319,15 +378,16 @@ exports.updateProduct = async (req, res) => {
           // If it's not a valid JSON, treat it as a single string
           images = product.imgUrl ? [product.imgUrl] : [];
         }
-        
-        // Add the new image
-        const newImagePath = `/uploads/products/${req.file.filename}`;
-        images.push(newImagePath);
-        
+
+        // Add the new images
+        req.files.productImage.forEach((file) => {
+          images.push(`/uploads/products/${file.filename}`);
+        });
+
         // Save as JSON string
         imgUrl = JSON.stringify(images);
       }
-      
+
       // Update product
       await product.update({
         productName: productName || product.productName,
@@ -338,13 +398,16 @@ exports.updateProduct = async (req, res) => {
         brand: brand || product.brand,
         stock: stock || product.stock,
         imgUrl,
-        isNew: isNew !== undefined ? isNew === 'true' : product.isNew,
-        isBestSeller: isBestSeller !== undefined ? isBestSeller === 'true' : product.isBestSeller,
-        tags: tags || product.tags
+        isNew: isNew !== undefined ? isNew === "true" : product.isNew,
+        isBestSeller:
+          isBestSeller !== undefined
+            ? isBestSeller === "true"
+            : product.isBestSeller,
+        tags: tags || product.tags,
       });
-      
+
       // Handle variants if provided
-      if (req.body.variants && typeof req.body.variants === 'string') {
+      if (req.body.variants && typeof req.body.variants === "string") {
         try {
           const variants = JSON.parse(req.body.variants);
           if (Array.isArray(variants)) {
@@ -358,10 +421,10 @@ exports.updateProduct = async (req, res) => {
                     description: variant.description || variant.name,
                     additionalPrice: variant.additionalPrice || 0,
                     stock: variant.stock || 0,
-                    sku: variant.sku || `${product.id}-${variant.name}`
+                    sku: variant.sku || `${product.id}-${variant.name}`,
                   },
                   {
-                    where: { id: variant.id, productId: product.id }
+                    where: { id: variant.id, productId: product.id },
                   }
                 );
               } else {
@@ -372,13 +435,13 @@ exports.updateProduct = async (req, res) => {
                   description: variant.description || variant.name,
                   additionalPrice: variant.additionalPrice || 0,
                   stock: variant.stock || 0,
-                  sku: variant.sku || `${product.id}-${variant.name}`
+                  sku: variant.sku || `${product.id}-${variant.name}`,
                 });
               }
             }
           }
         } catch (parseError) {
-          console.error('Error parsing variants:', parseError);
+          console.error("Error parsing variants:", parseError);
         }
       }
 
@@ -387,21 +450,21 @@ exports.updateProduct = async (req, res) => {
         include: [
           {
             model: ProductVariant,
-            attributes: ['id', 'name', 'additionalPrice', 'stock', 'sku']
-          }
-        ]
+            attributes: ["id", "name", "additionalPrice", "stock", "sku"],
+          },
+        ],
       });
 
       res.json({
         success: true,
-        message: 'Product updated successfully',
-        product: updatedProduct
+        message: "Product updated successfully",
+        product: updatedProduct,
       });
     } catch (error) {
-      console.error('Error updating product:', error);
+      console.error("Error updating product:", error);
       res.status(500).json({
         success: false,
-        message: 'Server error'
+        message: "Server error",
       });
     }
   });
@@ -414,16 +477,16 @@ exports.deleteProduct = async (req, res) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found'
+        message: "Product not found",
       });
     }
-    
+
     // Delete product image if exists
     if (product.imgUrl) {
       try {
         let images = [];
-        if (typeof product.imgUrl === 'string') {
-          if (product.imgUrl.startsWith('[')) {
+        if (typeof product.imgUrl === "string") {
+          if (product.imgUrl.startsWith("[")) {
             images = JSON.parse(product.imgUrl);
           } else {
             images = [product.imgUrl];
@@ -431,31 +494,31 @@ exports.deleteProduct = async (req, res) => {
         } else if (Array.isArray(product.imgUrl)) {
           images = product.imgUrl;
         }
-        
+
         // Delete each image
         for (const img of images) {
-          const imagePath = path.join(__dirname, '../public', img);
+          const imagePath = path.join(__dirname, "../public", img);
           if (fs.existsSync(imagePath)) {
             fs.unlinkSync(imagePath);
           }
         }
       } catch (error) {
-        console.error('Error deleting product images:', error);
+        console.error("Error deleting product images:", error);
       }
     }
 
     // Delete product from database (cascades to variants and reviews)
     await product.destroy();
-    
+
     res.json({
       success: true,
-      message: 'Product deleted successfully'
+      message: "Product deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error("Error deleting product:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
@@ -463,21 +526,21 @@ exports.deleteProduct = async (req, res) => {
 // Get available brands
 exports.getBrands = async (req, res) => {
   try {
-    const { sequelize } = require('../config/db');
+    const { sequelize } = require("../config/db");
     const brands = await Product.findAll({
-      attributes: [[sequelize.fn('DISTINCT', sequelize.col('brand')), 'brand']],
-      order: [['brand', 'ASC']]
+      attributes: [[sequelize.fn("DISTINCT", sequelize.col("brand")), "brand"]],
+      order: [["brand", "ASC"]],
     });
-    
+
     res.json({
       success: true,
-      brands: brands.map(item => item.brand)
+      brands: brands.map((item) => item.brand),
     });
   } catch (error) {
-    console.error('Error getting brands:', error);
+    console.error("Error getting brands:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
