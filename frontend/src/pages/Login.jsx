@@ -7,6 +7,7 @@ import { useDispatch } from "react-redux";
 import { syncCartAfterLogin } from "../slices/cartSlice";
 import "../styles/auth.css";
 import Helmet from "../components/Helmet/Helmet";
+import GoogleAuthButton from "../components/UI/GoogleAuthButton";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -80,7 +81,10 @@ const Login = () => {
             <Col lg="6" className="m-auto">
               <div className="auth-form">
                 <h3 className="text-center">Login</h3>
-                
+              <GoogleAuthButton />
+              <div className="text-center my-3">
+                <span className="text-muted">OR</span>
+              </div>
                 <form onSubmit={handleLogin}>
                   <div className="form-group">
                     <label>Email</label>
@@ -104,6 +108,12 @@ const Login = () => {
                     />
                   </div>
                   
+                  <div className="text-end mb-3">
+                    <Link to="/forgot-password" className="text-decoration-none">
+                      Forgot Password?
+                    </Link>
+                  </div>
+
                   <button
                     type="submit"
                     className="auth-btn"

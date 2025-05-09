@@ -6,13 +6,6 @@ const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const { sendPasswordResetEmail } = require('../utils/emailService');
 
-let emailService = { sendPasswordResetEmail: async () => false };
-try {
-  emailService = require('../utils/emailService');
-} catch (err) {
-  console.warn('Email service not available:', err.message);
-}
-
 // Register a new user
 exports.register = async (req, res) => {
   try {
@@ -499,6 +492,7 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findOne({ where: { email } });
     if (!user) {
       // For security reasons, we still return success even if email doesn't exist
+      // This prevents user enumeration attacks
       return res.json({
         success: true,
         message: "If a user with that email exists, a password reset link has been sent."
@@ -506,41 +500,41 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Generate reset token
-    const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'fallback_secret_key', {
+    const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 
-    // For development/testing: always return the token
-    return res.json({
-      success: true,
-      message: "For development purposes, use this token:",
-      resetToken,
-      resetLink: `${process.env.FRONTEND_URL || 'http://localhost'}/reset-password?token=${resetToken}`
-    });
+    // In a real implementation, you might want to store this token in the DB
+    // with an expiration timestamp for additional security
     
-    /* Uncomment this when email service is properly set up
     // Attempt to send reset email
     let emailSent = false;
     try {
-      emailSent = await emailService.sendPasswordResetEmail(email, resetToken);
+      if (typeof sendPasswordResetEmail === 'function') {
+        emailSent = await sendPasswordResetEmail(email, resetToken);
+      }
     } catch (emailError) {
       console.error("Email sending error:", emailError);
+      // Continue execution - we'll handle the fallback below
     }
     
     if (emailSent) {
+      // Email was sent successfully
       res.json({
         success: true,
         message: "Password reset instructions sent to your email"
       });
     } else {
+      // If email fails or service is not available, return the token for testing purposes
+      // In production, this should be removed or modified
+      console.log("Email service unavailable or not configured - using fallback");
       res.json({
         success: true,
-        message: "For development purposes, use this token:",
+        message: "Email service is currently unavailable. For testing purposes, use this token:",
         resetToken,
         resetLink: `${process.env.FRONTEND_URL || 'http://localhost'}/reset-password?token=${resetToken}`
       });
     }
-    */
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({

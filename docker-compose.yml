@@ -51,6 +51,10 @@ services:
       DB_PASSWORD: password
       DB_NAME: NodeJS_midterm_db
       JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET:-default_session_secret}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       SERVICE_PORT: 3001
     depends_on:
       mysql:

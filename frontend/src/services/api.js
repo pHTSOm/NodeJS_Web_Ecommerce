@@ -97,24 +97,41 @@ export const AuthService = {
   },
   
   isAdmin: () => {
-  try {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) return false;
-    const user = JSON.parse(userStr);
-    return user && user.role === 'admin';
-  } catch (err) {
-    console.error('Error checking admin status:', err);
-    return false;
-  }
-},
-  // Add new user profile methods
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return false;
+      const user = JSON.parse(userStr);
+      return user && user.role === 'admin';
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+      return false;
+    }
+  },
+  
+  // Add these methods for password reset
+  forgotPassword: async (data) => {
+    const response = await API.post('/auth/forgot-password', data);
+    return response.data;
+  },
+  
+  resetPassword: async (data) => {
+    const response = await API.post('/auth/reset-password', data);
+    return response.data;
+  },
+  
+  // Add these methods for profile management
   getUserProfile: async () => {
     const response = await API.get('/users/me');
     return response.data;
   },
   
   updateUserProfile: async (profileData) => {
-    const response = await API.put('/users/me', profileData);
+    const response = await API.put('/users/profile', profileData);
+    return response.data;
+  },
+  
+  changePassword: async (passwordData) => {
+    const response = await API.put('/users/change-password', passwordData);
     return response.data;
   },
   
@@ -326,7 +343,7 @@ export const OrderService = {
 // Admin Service for additional admin functionality
 export const AdminService = {
   getAllUsers: async () => {
-    const response = await API.get('/admin/users');
+    const response = await API.get('/admin/users'); 
     return response.data;
   },
   
