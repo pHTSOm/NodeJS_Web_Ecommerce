@@ -181,6 +181,7 @@ export const ProductService = {
       }
     };
 
+    console.log("Creating product with data:", Object.fromEntries(productData));
     const response = await API.post('/products', productData, config);
     return response.data;
   },
@@ -192,6 +193,7 @@ export const ProductService = {
       }
     };
     
+    console.log("Updating product with data:", Object.fromEntries(productData));
     const response = await API.put(`/products/${id}`, productData, config);
     return response.data;
   },
@@ -336,7 +338,12 @@ export const AdminService = {
   deleteUser: async (id) => {
     const response = await API.delete(`/admin/users/${id}`);
     return response.data;
-  }
+  },
+
+  getDashboardStats: async () => {
+    const response = await API.get('/admin/dashboard/stats');
+    return response.data;
+  },
 };
 
 

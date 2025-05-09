@@ -79,6 +79,10 @@ const Header = () => {
     navigate("/cart");
   };
 
+  const navigateToAdminDashboard = () => {
+    navigate("/admin/dashboard");
+  };
+
   // Navigate to login 
   const navigateToLogin = () => {
     navigate("/login");
@@ -170,7 +174,7 @@ const Header = () => {
                 {isLoggedIn && (
                   <div className="user__dropdown">
                     {isAdmin && (
-                      <span className="user__dropdown-item">
+                      <span className="user__dropdown-item" onClick={navigateToAdminDashboard}>
                         Admin Dashboard
                       </span>
                     )}
