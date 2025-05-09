@@ -4,7 +4,14 @@ const Address = require("../models/Address");
 const { generateToken } = require("../middleware/auth");
 const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
+const { sendPasswordResetEmail } = require('../utils/emailService');
 
+let emailService = { sendPasswordResetEmail: async () => false };
+try {
+  emailService = require('../utils/emailService');
+} catch (err) {
+  console.warn('Email service not available:', err.message);
+}
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -483,7 +490,7 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// Forgot password
+// Forgot Password
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -491,31 +498,54 @@ exports.forgotPassword = async (req, res) => {
     // Find user
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "No user found with this email",
+      // For security reasons, we still return success even if email doesn't exist
+      return res.json({
+        success: true,
+        message: "If a user with that email exists, a password reset link has been sent."
       });
     }
 
     // Generate reset token
-    const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'fallback_secret_key', {
       expiresIn: "1h",
     });
 
-    // In a real application, you would:
-    // 1. Save the reset token to the user record
-    // 2. Send an email with the reset link
-    // For this example, we'll just return the token
-    res.json({
+    // For development/testing: always return the token
+    return res.json({
       success: true,
-      message: "Password reset instructions sent to your email",
-      resetToken, // In production, don't send this token in the response
+      message: "For development purposes, use this token:",
+      resetToken,
+      resetLink: `${process.env.FRONTEND_URL || 'http://localhost'}/reset-password?token=${resetToken}`
     });
+    
+    /* Uncomment this when email service is properly set up
+    // Attempt to send reset email
+    let emailSent = false;
+    try {
+      emailSent = await emailService.sendPasswordResetEmail(email, resetToken);
+    } catch (emailError) {
+      console.error("Email sending error:", emailError);
+    }
+    
+    if (emailSent) {
+      res.json({
+        success: true,
+        message: "Password reset instructions sent to your email"
+      });
+    } else {
+      res.json({
+        success: true,
+        message: "For development purposes, use this token:",
+        resetToken,
+        resetLink: `${process.env.FRONTEND_URL || 'http://localhost'}/reset-password?token=${resetToken}`
+      });
+    }
+    */
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Server error"
     });
   }
 };
@@ -525,12 +555,26 @@ exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Token and new password are required",
+      });
+    }
+
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.id;
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token",
+      });
+    }
 
     // Find user
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(decoded.id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -548,12 +592,6 @@ exports.resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Reset password error:", error);
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid or expired reset token",
-      });
-    }
     res.status(500).json({
       success: false,
       message: "Server error",

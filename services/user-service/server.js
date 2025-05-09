@@ -1,17 +1,28 @@
+// services/user-service/server.js
 const express = require('express');
 const cors = require('cors');
 const { testConnection, initializeDatabase } = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
+const authRoutes = require('./routes/authRoutes'); // Make sure this is imported
 
 const app = express();
 const PORT = process.env.SERVICE_PORT || 3001;
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost',
+  credentials: true
+}));
 app.use(express.json());
 
-// Routes
-app.use('/api/auth', userRoutes);
+// Routes - Important: Make sure auth routes are registered
+app.use('/api/auth', authRoutes); // This line is crucial
 app.use('/api/users', userRoutes);
 app.use('/api/admin', userRoutes);
 
@@ -22,7 +33,7 @@ app.get('/health', (req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
+  console.error('Error:', err.message, err.stack);
   res.status(500).json({
     success: false,
     message: 'Internal server error'
