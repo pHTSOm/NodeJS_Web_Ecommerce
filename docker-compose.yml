@@ -106,6 +106,35 @@ services:
     networks:
       - Ecommerce-Project-network
 
+  # Order Service
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: Ecommerce-Project-order-service
+    restart: always
+    environment:
+      - SERVICE_PORT=3005
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_HOST=mysql
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=NodeJS_midterm_db
+      - USER_SERVICE_URL=http://user-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - CART_SERVICE_URL=http://cart-service:3003
+      - FRONTEND_URL=http://frontend:80
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - EMAIL_SERVICE=gmail
+    depends_on:
+      - mysql
+      - user-service
+      - product-service
+      - cart-service
+    networks:
+      - Ecommerce-Project-network
+
   # Frontend React App
   frontend:
     build:

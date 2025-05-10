@@ -173,6 +173,9 @@ const Header = () => {
                 
                 {isLoggedIn && (
                   <div className="user__dropdown">
+                      <span className="user__dropdown-item" onClick={() => navigate("/orders")}>
+                        My Orders
+                      </span>
                     {isAdmin && (
                       <span className="user__dropdown-item" onClick={navigateToAdminDashboard}>
                         Admin Dashboard
