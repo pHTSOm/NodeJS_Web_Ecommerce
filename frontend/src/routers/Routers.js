@@ -8,10 +8,6 @@ import Checkout from '../pages/Checkout';
 import ProductDetails from '../pages/ProductDetails';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
-import Profile from '../pages/Profile';
-import ForgotPassword from '../pages/ForgotPassword';
-import ResetPassword from '../pages/ResetPassword';
-import AuthSuccess from '../pages/AuthSuccess';
 
 import AdminLayout from '../admin/components/AdminLayout';
 import AdminDashboard from '../admin/pages/AdminDashboard';
@@ -27,18 +23,6 @@ const Routers = () => {
     <Route path='cart' element={<Cart/>}/>
     <Route path="login" element={<Login />} />
     <Route path="register" element={<Register />} />
-    
-    {/* Add new routes for user service features */}
-    <Route path="auth/success" element={<AuthSuccess />} />
-    <Route path="forgot-password" element={<ForgotPassword />} />
-    <Route path="reset-password" element={<ResetPassword />} />
-    
-    {/* Profile route - protected */}
-    <Route path="profile" element={
-      <ProtectedRoute>
-        <Profile />
-      </ProtectedRoute>
-    } />
     
     <Route path="checkout" element={
         <ProtectedRoute>

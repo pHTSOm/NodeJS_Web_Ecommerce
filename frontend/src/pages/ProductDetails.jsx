@@ -154,50 +154,39 @@ const ProductDetails = () => {
 
         if (productData.imgUrl) {
           try {
-            // Handle JSON string array
-            if (
-              typeof productData.imgUrl === "string" &&
-              productData.imgUrl.startsWith("[")
-            ) {
-              const parsedImages = JSON.parse(productData.imgUrl);
-              if (parsedImages && parsedImages.length > 0) {
-                // Process all images in the array
-                allImages = parsedImages
-                  .map((img) => {
-                    if (!img) return "/placeholder.png";
-                    return img.startsWith("http")
-                      ? img
-                      : `/uploads${
-                          img.startsWith("/") ? img : "/products/" + img
-                        }`;
-                  })
-                  .filter((img) => img); // Filter out any null/undefined
-                mainImg = allImages[0];
+            let parsedImages = [];
+        
+            // Parse image data consistently
+            if (typeof productData.imgUrl === "string") {
+              if (productData.imgUrl.startsWith("[")) {
+                parsedImages = JSON.parse(productData.imgUrl);
+              } else {
+                parsedImages = [productData.imgUrl];
               }
+            } else if (Array.isArray(productData.imgUrl)) {
+              parsedImages = productData.imgUrl;
             }
-            // Handle single string URL
-            else if (typeof productData.imgUrl === "string") {
-              const img = productData.imgUrl;
-              mainImg = img.startsWith("http")
-                ? img
-                : `/uploads${img.startsWith("/") ? img : "/products/" + img}`;
-              allImages = [mainImg];
-            }
-            // Handle array directly
-            else if (
-              Array.isArray(productData.imgUrl) &&
-              productData.imgUrl.length > 0
-            ) {
-              allImages = productData.imgUrl
-                .map((img) => {
-                  if (!img) return "/placeholder.png";
-                  return img.startsWith("http")
-                    ? img
-                    : `/uploads${
-                        img.startsWith("/") ? img : "/products/" + img
-                      }`;
-                })
-                .filter((img) => img);
+        
+            // Process all images consistently
+            allImages = parsedImages
+              .map((img) => {
+                if (!img || img === "null") return "/placeholder.png";
+        
+                // Full URLs
+                if (img.startsWith("http")) return img;
+        
+                // Paths starting with /uploads/ - leave as is
+                if (img.startsWith("/uploads/")) return img;
+        
+                // Paths starting with /products/ - add /uploads prefix
+                if (img.startsWith("/products/")) return `/uploads${img}`;
+        
+                // Other relative paths - assume products folder
+                return `/uploads/products/${img.replace(/^\//, "")}`;
+              })
+              .filter((img) => img);
+        
+            if (allImages.length > 0) {
               mainImg = allImages[0];
             }
           } catch (error) {

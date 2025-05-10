@@ -3,6 +3,7 @@ import { Row, Col, Table, Button, Input, Spinner, Card, CardBody, CardHeader } f
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
+import { getImageUrl } from '../../utils/imageUtils';
 import { ProductService } from "../../services/api";
 
 const AdminProducts = () => {
@@ -128,35 +129,7 @@ const AdminProducts = () => {
                   <tbody>
                     {filteredProducts.map((product) => {
                       // Process image URL
-                      let imageUrl = '/placeholder.png';
-                      try {
-                        if (typeof product.imgUrl === 'string') {
-                          if (product.imgUrl.startsWith('[')) {
-                            const images = JSON.parse(product.imgUrl);
-                            if (images && images.length > 0) {
-                              imageUrl = images[0];
-                            }
-                          } else {
-                            imageUrl = product.imgUrl;
-                          }
-                        } else if (Array.isArray(product.imgUrl) && product.imgUrl.length > 0) {
-                          imageUrl = product.imgUrl[0];
-                        }
-
-                        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/placeholder')) {
-                          if (imageUrl.startsWith('/uploads/')) {
-                            // Already has uploads prefix, use as is
-                          } else if (imageUrl.startsWith('/products/')) {
-                            imageUrl = `/uploads${imageUrl}`;
-                          } else {
-                            imageUrl = imageUrl.startsWith('/') 
-                              ? `/uploads${imageUrl}` 
-                              : `/uploads/products/${imageUrl}`;
-                          }
-                        }
-                      } catch (error) {
-                        console.error("Error processing image URL:", error);
-                      }
+                      const imageUrl = getImageUrl(product.imgUrl);
                       
                       return (
                         <tr key={product.id}>
