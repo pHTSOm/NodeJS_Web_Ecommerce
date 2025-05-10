@@ -51,8 +51,8 @@ const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 // Mount routes
+app.use('/api/admin', adminRoutes); 
 app.use('/api/orders', orderRoutes);
-app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

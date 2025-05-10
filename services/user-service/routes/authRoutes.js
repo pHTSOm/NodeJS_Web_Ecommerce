@@ -25,26 +25,22 @@ router.get('/google',
 );
 
 router.get('/google/callback',
-  (req, res, next) => {
-    console.log('Google callback route hit');
-    next();
-  },
   passport.authenticate('google', { 
     failureRedirect: '/login?error=google_auth_failed',
     session: false
   }),
   (req, res) => {
-    console.log('Google auth successful, redirecting...');
-    // Create front-end URL with token and user info
+    // Create frontend URL with token and user info
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost';
-    const userInfo = encodeURIComponent(JSON.stringify({
+    // Encode user info to prevent issues with special characters
+    const userInfo = Buffer.from(JSON.stringify({
       id: req.user.id,
       name: req.user.name,
       email: req.user.email,
       role: req.user.role
-    }));
+    })).toString('base64');
     
-    // Redirect to frontend auth success page
+    // Redirect to frontend auth success page with token and encoded user data
     res.redirect(`${frontendUrl}/auth/success?token=${req.user.token}&user=${userInfo}`);
   }
 );

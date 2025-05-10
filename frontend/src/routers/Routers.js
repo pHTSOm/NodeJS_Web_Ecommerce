@@ -19,6 +19,7 @@ import AdminProducts from '../admin/pages/AdminProducts';
 import AdminProductEdit from '../admin/pages/AdminProductEdit';
 import AdminOrders from '../admin/pages/AdminOrders';
 import AdminOrderDetails from '../admin/pages/AdminOrderDetails';
+import AdminUsers from '../admin/pages/AdminUsers';
 
 const Routers = () => {
   return <Routes>
@@ -61,6 +62,7 @@ const Routers = () => {
       <Route path="products/edit/:id" element={<AdminProductEdit />} />
       <Route path="orders" element={<AdminOrders />} /> 
       <Route path="orders/:orderId" element={<AdminOrderDetails />} />
+      <Route path="users" element={<AdminUsers />} />
     </Route>
       
     {/* Keep backwards compatibility for now */}

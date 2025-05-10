@@ -398,25 +398,58 @@ export const OrderService = {
 
 // Admin Service for additional admin functionality
 export const AdminService = {
+  // Order management
+  getAllOrders: async (params = {}) => {
+    try {
+      const response = await API.get('/admin/orders', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all orders:', error);
+      throw error;
+    }
+  },
+  
+  getOrderDetails: async (orderId) => {
+    const response = await API.get(`/admin/orders/${orderId}`);
+    return response.data;
+  },
+  
+  updateOrderStatus: async (orderId, statusData) => {
+    const response = await API.put(`/admin/orders/${orderId}/status`, statusData);
+    return response.data;
+  },
+
+  getOrderStatusHistory: async (orderId) => {
+    const response = await API.get(`/admin/orders/${orderId}/status`);
+    return response.data;
+  },
+  
+  getOrderStats: async (params = {}) => {
+    const response = await API.get("/admin/stats", { params });
+    return response.data;
+  },
+  
+  // User management 
   getAllUsers: async () => {
-    const response = await API.get("/admin/users");
+    const response = await API.get("/users/users");
     return response.data;
   },
-
+  
   updateUser: async (id, userData) => {
-    const response = await API.put(`/admin/users/${id}`, userData);
+    const response = await API.put(`/users/users/${id}`, userData);
     return response.data;
   },
-
+  
   deleteUser: async (id) => {
-    const response = await API.delete(`/admin/users/${id}`);
+    const response = await API.delete(`/users/users/${id}`);
     return response.data;
   },
-
+  
+  // Dashboard stats
   getDashboardStats: async () => {
     const response = await API.get("/admin/dashboard/stats");
     return response.data;
-  },
+  }
 };
 
 export default API;
