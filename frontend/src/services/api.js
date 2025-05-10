@@ -285,6 +285,8 @@ export const CartService = {
   },
 };
 
+
+
 // Review Service
 export const ReviewService = {
   getReviewsByProduct: async (productId, params = {}) => {
@@ -325,35 +327,56 @@ export const ReviewService = {
 // Order Service
 export const OrderService = {
   createOrder: async (orderData) => {
-    const response = await API.post("/orders", orderData);
-    return response.data;
+    try {
+      const response = await API.post('/orders', orderData, {
+        withCredentials: true
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
   },
-
-  getOrders: async () => {
-    const response = await API.get("/orders");
-    return response.data;
+  
+  getUserOrders: async (params = {}) => {
+    try {
+      const response = await API.get('/orders', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user orders:', error);
+      throw error;
+    }
   },
-
-  getOrderDetails: async (id) => {
-    const response = await API.get(`/orders/${id}`);
-    return response.data;
+  
+  getOrderDetails: async (orderId) => {
+    try {
+      const response = await API.get(`/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching order details (ID: ${orderId}):`, error);
+      throw error;
+    }
   },
-
-  getGuestOrders: async (guestData) => {
-    const response = await API.post("/orders/guest", guestData);
-    return response.data;
+  
+  getOrderStatusHistory: async (orderId) => {
+    try {
+      const response = await API.get(`/orders/${orderId}/status`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching order status history (ID: ${orderId}):`, error);
+      throw error;
+    }
   },
-
-  // Admin endpoints
-  getAllOrders: async (params = {}) => {
-    const response = await API.get("/admin/orders", { params });
-    return response.data;
-  },
-
-  updateOrderStatus: async (id, statusData) => {
-    const response = await API.put(`/admin/orders/${id}/status`, statusData);
-    return response.data;
-  },
+  
+  trackGuestOrder: async (trackingData) => {
+    try {
+      const response = await API.post('/orders/guest', trackingData);
+      return response.data;
+    } catch (error) {
+      console.error('Error tracking guest order:', error);
+      throw error;
+    }
+  }
 };
 
 // Admin Service for additional admin functionality

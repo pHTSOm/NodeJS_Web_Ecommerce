@@ -71,6 +71,47 @@
   color: white;
 }
 
+/* Status timeline styling */
+.status-timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #0a1d37;
+}
+
+.status-line {
+  width: 2px;
+  height: 30px;
+  background-color: #ddd;
+  margin-top: 5px;
+}
+
+/* Order history table styling */
+.order-history-table th {
+  background-color: #f8f9fa;
+}
+
+.order-history-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.order-history-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .order-history-table {
+    font-size: 0.9rem;
+  }
+}
+
 /* Form Styles */
 .form-control:focus {
   border-color: var(--primary-color);

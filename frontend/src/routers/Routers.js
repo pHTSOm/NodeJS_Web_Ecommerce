@@ -9,10 +9,16 @@ import ProductDetails from '../pages/ProductDetails';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 
+import OrderConfirmation from '../pages/OrderConfirmation';
+import OrderHistory from '../pages/OrderHistory';
+import OrderDetails from '../pages/OrderDetails';
+
 import AdminLayout from '../admin/components/AdminLayout';
 import AdminDashboard from '../admin/pages/AdminDashboard';
 import AdminProducts from '../admin/pages/AdminProducts';
 import AdminProductEdit from '../admin/pages/AdminProductEdit';
+import AdminOrders from '../admin/pages/AdminOrders';
+import AdminOrderDetails from '../admin/pages/AdminOrderDetails';
 
 const Routers = () => {
   return <Routes>
@@ -30,6 +36,18 @@ const Routers = () => {
         </ProtectedRoute>
       } />
 
+    <Route path="order-confirmation/:orderId" element={<OrderConfirmation />} />
+    <Route path="orders" element={
+      <ProtectedRoute>
+        <OrderHistory />
+      </ProtectedRoute>
+    } />
+    <Route path="orders/:orderId" element={
+      <ProtectedRoute>
+        <OrderDetails />
+      </ProtectedRoute>
+    } />
+
     {/* Admin routes - nested under an admin layout */}
     <Route path="admin" element={
       <ProtectedRoute adminOnly={true}>
@@ -41,6 +59,8 @@ const Routers = () => {
       <Route path="products" element={<AdminProducts />} />
       <Route path="products/add" element={<AdminProductEdit />} />
       <Route path="products/edit/:id" element={<AdminProductEdit />} />
+      <Route path="orders" element={<AdminOrders />} /> 
+      <Route path="orders/:orderId" element={<AdminOrderDetails />} />
     </Route>
       
     {/* Keep backwards compatibility for now */}
