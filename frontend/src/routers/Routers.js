@@ -8,6 +8,7 @@ import Checkout from '../pages/Checkout';
 import ProductDetails from '../pages/ProductDetails';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import Profile from '../pages/Profile';
 
 import OrderConfirmation from '../pages/OrderConfirmation';
 import OrderHistory from '../pages/OrderHistory';
@@ -46,6 +47,12 @@ const Routers = () => {
     <Route path="orders/:orderId" element={
       <ProtectedRoute>
         <OrderDetails />
+      </ProtectedRoute>
+    } />
+
+    <Route path="profile" element={
+      <ProtectedRoute>
+        <Profile />
       </ProtectedRoute>
     } />
 

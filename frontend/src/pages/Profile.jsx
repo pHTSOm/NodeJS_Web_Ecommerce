@@ -1,82 +1,110 @@
-// frontend/src/pages/Profile.jsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Container, Row, Col, Card, CardBody, Nav, NavItem, NavLink, 
-  TabContent, TabPane, Button, Form, FormGroup, Input, Label,
-  Alert
-} from 'reactstrap';
-import { Navigate } from 'react-router-dom';
+import { Container, Row, Col, Card, CardBody, Nav, NavItem, NavLink, 
+  TabContent, TabPane, Button, Form, FormGroup, Input, Label, Alert, Spinner } from 'reactstrap';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthService } from '../services/api';
+import AddressManagement from '../components/Profile/AddressManagement';
 import Helmet from '../components/Helmet/Helmet';
 import CommonSection from '../components/UI/CommonSection';
-import AddressManagement from '../components/Profile/AddressManagement';
-import '../styles/profile.css';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
-  const [error, setError] = useState(null);
-  
-  // User profile state
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
   });
-  
-  // Password change state
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  
-  // Check if user is logged in
-  const isLoggedIn = AuthService.isLoggedIn();
-  
-  // Load user profile
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  // Load user profile data
   useEffect(() => {
-    if (isLoggedIn) {
-      loadUserProfile();
-    }
-  }, [isLoggedIn]);
-  
+    loadUserProfile();
+  }, []);
+
   const loadUserProfile = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await AuthService.getUserProfile();
+      
       if (response.success && response.user) {
         setProfileData({
           name: response.user.name || '',
           email: response.user.email || '',
         });
+      } else {
+        setError('Failed to load profile data');
       }
     } catch (error) {
-      setError('Failed to load profile');
+      console.error('Error loading profile:', error);
+      setError(error.response?.data?.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
   };
-  
-  // Handle tab change
+
+  // Handle profile info update
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate form data
+    if (!profileData.name.trim()) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+    
+    if (!profileData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    setSaving(true);
+    setError(null);
+    
+    try {
+      const response = await AuthService.updateUserProfile(profileData);
+      
+      if (response.success) {
+        toast.success('Profile updated successfully');
+        
+        // Update localStorage user data to keep it in sync
+        const user = AuthService.getCurrentUser();
+        if (user) {
+          user.name = profileData.name;
+          user.email = profileData.email;
+          localStorage.setItem('user', JSON.stringify(user));
+          
+          // Dispatch an event to notify other components about the update
+          window.dispatchEvent(new Event('storage'));
+        }
+      } else {
+        setError(response.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError(error.response?.data?.message || 'Failed to update profile');
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Toggle between tabs
   const toggleTab = (tab) => {
     if (activeTab !== tab) {
       setActiveTab(tab);
     }
   };
-  
-  // Handle profile input change
-  const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    setProfileData({
-      ...profileData,
-      [name]: value
-    });
-  };
-  
-  // Handle password input change
+
+  // Handle password change
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData({
@@ -84,43 +112,29 @@ const Profile = () => {
       [name]: value
     });
   };
-  
-  // Save profile
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    
-    try {
-      const response = await AuthService.updateUserProfile(profileData);
-      if (response.success) {
-        toast.success('Profile updated successfully');
-        
-        // Update local storage user data
-        const user = AuthService.getCurrentUser();
-        if (user) {
-          user.name = profileData.name;
-          user.email = profileData.email;
-          localStorage.setItem('user', JSON.stringify(user));
-        }
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
-    } finally {
-      setSaving(false);
-    }
-  };
-  
-  // Change password
+
+  // Submit password change
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate passwords match
+    // Validate passwords
+    if (!passwordData.currentPassword) {
+      toast.error('Current password is required');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('New passwords do not match');
       return;
     }
     
-    setChangePasswordLoading(true);
+    setSaving(true);
+    setError(null);
     
     try {
       const response = await AuthService.changePassword({
@@ -135,24 +149,23 @@ const Profile = () => {
           newPassword: '',
           confirmPassword: '',
         });
+      } else {
+        setError(response.message || 'Failed to update password');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to change password');
+      console.error('Error updating password:', error);
+      setError(error.response?.data?.message || 'Failed to update password');
+      toast.error(error.response?.data?.message || 'Failed to update password');
     } finally {
-      setChangePasswordLoading(false);
+      setSaving(false);
     }
   };
-  
-  // If user is not logged in, redirect to login
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
-  }
-  
+
   return (
     <Helmet title="My Profile">
       <CommonSection title="My Profile" />
       
-      <section className="profile-section">
+      <section className="profile-section py-5">
         <Container>
           {error && (
             <Alert color="danger" className="mb-4">
@@ -166,10 +179,10 @@ const Profile = () => {
                 <CardBody>
                   <div className="profile-avatar text-center mb-4">
                     <div className="avatar-placeholder">
-                      {profileData.name.charAt(0).toUpperCase()}
+                      {profileData.name ? profileData.name.charAt(0).toUpperCase() : '?'}
                     </div>
-                    <h5 className="mt-3">{profileData.name}</h5>
-                    <p className="text-muted">{profileData.email}</p>
+                    <h5 className="mt-3">{profileData.name || 'Loading...'}</h5>
+                    <p className="text-muted">{profileData.email || 'Loading...'}</p>
                   </div>
                   
                   <Nav vertical pills className="profile-nav">
@@ -202,22 +215,26 @@ const Profile = () => {
                     </NavItem>
                     <NavItem>
                       <NavLink
-                        onClick={() => {
-                          AuthService.logout();
-                          window.location.href = '/login';
-                        }}
+                        className={activeTab === 'orders' ? 'active' : ''}
+                        onClick={() => toggleTab('orders')}
                       >
-                        <i className="ri-logout-box-line me-2"></i>
-                        Logout
+                        <i className="ri-file-list-line me-2"></i>
+                        Order History
                       </NavLink>
                     </NavItem>
                   </Nav>
                 </CardBody>
               </Card>
+              
+              <div className="d-grid gap-2 mt-3">
+                <Button color="outline-danger" onClick={() => navigate('/shop')}>
+                  Back to Shop
+                </Button>
+              </div>
             </Col>
             
             <Col lg="9" md="8">
-              <Card className="profile-content">
+              <Card className="profile-content h-100">
                 <CardBody>
                   <TabContent activeTab={activeTab}>
                     {/* Profile Information Tab */}
@@ -226,9 +243,8 @@ const Profile = () => {
                       
                       {loading ? (
                         <div className="text-center py-4">
-                          <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                          </div>
+                          <Spinner color="primary" />
+                          <p className="mt-3">Loading your profile...</p>
                         </div>
                       ) : (
                         <Form onSubmit={handleProfileSubmit}>
@@ -239,7 +255,7 @@ const Profile = () => {
                               name="name"
                               id="name"
                               value={profileData.name}
-                              onChange={handleProfileChange}
+                              onChange={(e) => setProfileData({...profileData, name: e.target.value})}
                               required
                             />
                           </FormGroup>
@@ -251,7 +267,7 @@ const Profile = () => {
                               name="email"
                               id="email"
                               value={profileData.email}
-                              onChange={handleProfileChange}
+                              onChange={(e) => setProfileData({...profileData, email: e.target.value})}
                               required
                             />
                           </FormGroup>
@@ -262,7 +278,7 @@ const Profile = () => {
                             disabled={saving}
                             className="mt-3"
                           >
-                            {saving ? 'Saving...' : 'Save Changes'}
+                            {saving ? <><Spinner size="sm" /> Saving...</> : 'Save Changes'}
                           </Button>
                         </Form>
                       )}
@@ -321,12 +337,22 @@ const Profile = () => {
                         <Button 
                           color="primary" 
                           type="submit" 
-                          disabled={changePasswordLoading}
+                          disabled={saving}
                           className="mt-3"
                         >
-                          {changePasswordLoading ? 'Changing...' : 'Change Password'}
+                          {saving ? <><Spinner size="sm" /> Updating...</> : 'Change Password'}
                         </Button>
                       </Form>
+                    </TabPane>
+                    
+                    {/* Orders Tab */}
+                    <TabPane tabId="orders">
+                      <h4 className="mb-4">Order History</h4>
+                      <div className="text-center py-4">
+                        <Button color="primary" onClick={() => navigate('/orders')}>
+                          View Order History
+                        </Button>
+                      </div>
                     </TabPane>
                   </TabContent>
                 </CardBody>

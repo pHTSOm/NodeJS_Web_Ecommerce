@@ -112,35 +112,75 @@ export const AuthService = {
   },
   // Add new user profile methods
   getUserProfile: async () => {
-    const response = await API.get("/users/me");
-    return response.data;
+    try {
+      const response = await API.get("/users/me");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      throw error;
+    }
   },
 
   updateUserProfile: async (profileData) => {
-    const response = await API.put("/users/me", profileData);
-    return response.data;
+    try {
+      const response = await API.put("/users/profile", profileData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
+    }
+  },
+
+  changePassword: async (passwordData) => {
+    try {
+      const response = await API.put("/users/change-password", passwordData);
+      return response.data;
+    } catch (error) {
+      console.error("Error changing password:", error);
+      throw error;
+    }
   },
 
   // Address management
   getAddresses: async () => {
-    const response = await API.get("/users/addresses");
-    return response.data;
+    try {
+      const response = await API.get("/users/addresses");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching addresses:", error);
+      throw error;
+    }
   },
 
   addAddress: async (addressData) => {
-    const response = await API.post("/users/addresses", addressData);
-    return response.data;
+    try {
+      const response = await API.post("/users/addresses", addressData);
+      return response.data;
+    } catch (error) {
+      console.error("Error adding address:", error);
+      throw error;
+    }
   },
 
   updateAddress: async (id, addressData) => {
-    const response = await API.put(`/users/addresses/${id}`, addressData);
-    return response.data;
+    try {
+      const response = await API.put(`/users/addresses/${id}`, addressData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating address:", error);
+      throw error;
+    }
   },
 
   deleteAddress: async (id) => {
-    const response = await API.delete(`/users/addresses/${id}`);
-    return response.data;
-  },
+    try {
+      const response = await API.delete(`/users/addresses/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting address:", error);
+      throw error;
+    }
+  }
 };
 
 // Product API calls

@@ -4,7 +4,7 @@ import {
   Container, Row, Col, Card, CardBody, CardHeader, 
   Button, Form, FormGroup, Input, Label, 
   Modal, ModalHeader, ModalBody, ModalFooter,
-  Badge
+  Badge, Alert, Spinner
 } from 'reactstrap';
 import { toast } from 'react-toastify';
 import { AuthService } from '../../services/api';
@@ -12,8 +12,11 @@ import { AuthService } from '../../services/api';
 const AddressManagement = () => {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState(false);
   const [currentAddress, setCurrentAddress] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const [apiError, setApiError] = useState(null);
   
   // Address form state
   const [formData, setFormData] = useState({
@@ -29,7 +32,14 @@ const AddressManagement = () => {
   });
   
   // Toggle modal
-  const toggle = () => setModal(!modal);
+  const toggle = () => {
+    setModal(!modal);
+    // Clear errors when closing the modal
+    if (modal) {
+      setFormErrors({});
+      setApiError(null);
+    }
+  };
   
   // Load addresses
   useEffect(() => {
@@ -42,13 +52,35 @@ const AddressManagement = () => {
       const response = await AuthService.getAddresses();
       if (response.success) {
         setAddresses(response.addresses || []);
+      } else {
+        toast.error('Failed to load addresses');
       }
     } catch (error) {
+      console.error('Error loading addresses:', error);
       toast.error('Failed to load addresses');
-      console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name.trim()) errors.name = 'Name is required';
+    if (!formData.addressLine1.trim()) errors.addressLine1 = 'Address is required';
+    if (!formData.city.trim()) errors.city = 'City is required';
+    if (!formData.state.trim()) errors.state = 'State/Province is required';
+    if (!formData.postalCode.trim()) errors.postalCode = 'Postal code is required';
+    if (!formData.phone.trim()) errors.phone = 'Phone number is required';
+    
+    // Phone validation - accepts formats like: +84 123456789, 0123456789, etc.
+    if (formData.phone && !/^\+?[0-9\s-()]{10,15}$/.test(formData.phone.replace(/\s/g, ''))) {
+      errors.phone = 'Please enter a valid phone number';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
   
   // Handle input change
@@ -58,6 +90,14 @@ const AddressManagement = () => {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
+    
+    // Clear error for this field when user types
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: null
+      });
+    }
   };
   
   // Open modal to add new address
@@ -74,6 +114,8 @@ const AddressManagement = () => {
       phone: '',
       isDefault: false
     });
+    setFormErrors({});
+    setApiError(null);
     toggle();
   };
   
@@ -91,12 +133,22 @@ const AddressManagement = () => {
       phone: address.phone,
       isDefault: address.isDefault
     });
+    setFormErrors({});
+    setApiError(null);
     toggle();
   };
   
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+    
+    setSubmitting(true);
+    setApiError(null);
     
     try {
       if (currentAddress) {
@@ -110,10 +162,14 @@ const AddressManagement = () => {
       }
       
       // Refresh addresses
-      fetchAddresses();
+      await fetchAddresses();
       toggle();
     } catch (error) {
+      console.error('Error saving address:', error);
+      setApiError(error.response?.data?.message || 'Failed to save address');
       toast.error(error.response?.data?.message || 'Failed to save address');
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -123,9 +179,10 @@ const AddressManagement = () => {
       try {
         await AuthService.deleteAddress(id);
         toast.success('Address deleted successfully');
-        fetchAddresses();
+        await fetchAddresses();
       } catch (error) {
-        toast.error('Failed to delete address');
+        console.error('Error deleting address:', error);
+        toast.error(error.response?.data?.message || 'Failed to delete address');
       }
     }
   };
@@ -137,10 +194,11 @@ const AddressManagement = () => {
       if (address && !address.isDefault) {
         await AuthService.updateAddress(id, { ...address, isDefault: true });
         toast.success('Default address updated');
-        fetchAddresses();
+        await fetchAddresses();
       }
     } catch (error) {
-      toast.error('Failed to update default address');
+      console.error('Error updating default address:', error);
+      toast.error(error.response?.data?.message || 'Failed to update default address');
     }
   };
   
@@ -149,25 +207,29 @@ const AddressManagement = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4>My Addresses</h4>
         <Button color="primary" onClick={handleAddAddress}>
-          Add New Address
+          <i className="ri-add-line me-1"></i> Add New Address
         </Button>
       </div>
       
       {loading ? (
-        <div className="text-center py-4">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+        <div className="text-center py-5">
+          <Spinner color="primary" />
+          <p className="mt-3">Loading your addresses...</p>
         </div>
       ) : addresses.length === 0 ? (
         <div className="text-center py-4 bg-light rounded">
+          <i className="ri-map-pin-line fs-3 mb-2"></i>
           <p className="mb-0">You don't have any saved addresses yet.</p>
+          <p className="text-muted small">Add an address to speed up your checkout process.</p>
+          <Button color="primary" size="sm" className="mt-2" onClick={handleAddAddress}>
+            Add Your First Address
+          </Button>
         </div>
       ) : (
         <Row>
           {addresses.map(address => (
             <Col md="6" lg="4" className="mb-4" key={address.id}>
-              <Card className="h-100 shadow-sm">
+              <Card className="h-100 shadow-sm address-card">
                 <CardHeader className="d-flex justify-content-between align-items-center">
                   <div>
                     <span className="fw-bold">{address.name}</span>
@@ -204,12 +266,18 @@ const AddressManagement = () => {
       )}
       
       {/* Add/Edit Address Modal */}
-      <Modal isOpen={modal} toggle={toggle}>
+      <Modal isOpen={modal} toggle={toggle} size="lg">
         <ModalHeader toggle={toggle}>
           {currentAddress ? 'Edit Address' : 'Add New Address'}
         </ModalHeader>
         <Form onSubmit={handleSubmit}>
           <ModalBody>
+            {apiError && (
+              <Alert color="danger" className="mb-4">
+                {apiError}
+              </Alert>
+            )}
+            
             <FormGroup>
               <Label for="name">Full Name*</Label>
               <Input
@@ -218,8 +286,10 @@ const AddressManagement = () => {
                 id="name"
                 value={formData.name}
                 onChange={handleChange}
+                invalid={!!formErrors.name}
                 required
               />
+              {formErrors.name && <div className="text-danger small mt-1">{formErrors.name}</div>}
             </FormGroup>
             
             <FormGroup>
@@ -230,8 +300,10 @@ const AddressManagement = () => {
                 id="addressLine1"
                 value={formData.addressLine1}
                 onChange={handleChange}
+                invalid={!!formErrors.addressLine1}
                 required
               />
+              {formErrors.addressLine1 && <div className="text-danger small mt-1">{formErrors.addressLine1}</div>}
             </FormGroup>
             
             <FormGroup>
@@ -242,6 +314,7 @@ const AddressManagement = () => {
                 id="addressLine2"
                 value={formData.addressLine2}
                 onChange={handleChange}
+                placeholder="Apartment, suite, unit, building, floor, etc. (optional)"
               />
             </FormGroup>
             
@@ -255,8 +328,10 @@ const AddressManagement = () => {
                     id="city"
                     value={formData.city}
                     onChange={handleChange}
+                    invalid={!!formErrors.city}
                     required
                   />
+                  {formErrors.city && <div className="text-danger small mt-1">{formErrors.city}</div>}
                 </FormGroup>
               </Col>
               <Col md={6}>
@@ -268,8 +343,10 @@ const AddressManagement = () => {
                     id="state"
                     value={formData.state}
                     onChange={handleChange}
+                    invalid={!!formErrors.state}
                     required
                   />
+                  {formErrors.state && <div className="text-danger small mt-1">{formErrors.state}</div>}
                 </FormGroup>
               </Col>
             </Row>
@@ -284,8 +361,10 @@ const AddressManagement = () => {
                     id="postalCode"
                     value={formData.postalCode}
                     onChange={handleChange}
+                    invalid={!!formErrors.postalCode}
                     required
                   />
+                  {formErrors.postalCode && <div className="text-danger small mt-1">{formErrors.postalCode}</div>}
                 </FormGroup>
               </Col>
               <Col md={6}>
@@ -311,8 +390,11 @@ const AddressManagement = () => {
                 id="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                invalid={!!formErrors.phone}
+                placeholder="e.g., +84 123456789"
                 required
               />
+              {formErrors.phone && <div className="text-danger small mt-1">{formErrors.phone}</div>}
             </FormGroup>
             
             <FormGroup check className="mb-0">
@@ -326,11 +408,25 @@ const AddressManagement = () => {
                 {' '}
                 Set as default address
               </Label>
+              <div className="text-muted small mt-1">
+                Default address will be automatically selected during checkout.
+              </div>
             </FormGroup>
           </ModalBody>
           <ModalFooter>
-            <Button color="secondary" onClick={toggle}>Cancel</Button>
-            <Button color="primary" type="submit">Save</Button>
+            <Button color="secondary" onClick={toggle} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button color="primary" type="submit" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Spinner size="sm" className="me-1" /> 
+                  {currentAddress ? 'Updating...' : 'Saving...'}
+                </>
+              ) : (
+                currentAddress ? 'Update Address' : 'Save Address'
+              )}
+            </Button>
           </ModalFooter>
         </Form>
       </Modal>

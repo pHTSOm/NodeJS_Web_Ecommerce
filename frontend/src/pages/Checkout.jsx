@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Form, FormGroup, Label, Input, Button, Spinner, Alert } from "reactstrap";
-import { useNavigate } from "react-router-dom";
+import { Container, Row, Col, Form, FormGroup, Label, Input, Button, Spinner, Alert, Card, CardBody, Badge } from "reactstrap";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import { clearCart } from "../slices/cartSlice";
@@ -9,23 +9,13 @@ import "../styles/checkout.css";
 import CommonSection from "../components/UI/CommonSection";
 import Helmet from "../components/Helmet/Helmet";
 
-
-const debugResponse = (response) => {
-  console.log("Full API response:", response);
-  console.log("Response type:", typeof response);
-  console.log("Has success property:", response && typeof response.success !== 'undefined');
-  console.log("Has order property:", response && typeof response.order !== 'undefined');
-  
-  if (response && response.order) {
-    console.log("Order properties:", Object.keys(response.order));
-  }
-};
-
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const cartItems = useSelector((state) => state.cart.cartItems);
   const totalAmount = useSelector((state) => state.cart.totalAmount);
+  
+  // States
   const [loading, setLoading] = useState(false);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
@@ -35,10 +25,10 @@ const Checkout = () => {
   const [verifyingDiscount, setVerifyingDiscount] = useState(false);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
-  
-  // Add the missing state declarations
   const [error, setError] = useState("");
   const [processingOrder, setProcessingOrder] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [addressesLoading, setAddressesLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -58,46 +48,45 @@ const Checkout = () => {
     setIsLoggedIn(loggedIn);
 
     if (loggedIn) {
-      // Get user's saved addresses
-      const fetchAddresses = async () => {
-        try {
-          const response = await AuthService.getAddresses();
-          if (response.success) {
-            setAddresses(response.addresses || []);
-            
-            // Set default address if available
-            const defaultAddress = response.addresses.find(addr => addr.isDefault);
-            if (defaultAddress) {
-              setSelectedAddressId(defaultAddress.id);
-              populateAddressForm(defaultAddress);
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch addresses:", error);
-        }
-      };
-
-      // Get user's loyalty points
-      const fetchUserProfile = async () => {
-        try {
-          const response = await AuthService.getUserProfile();
-          if (response.success && response.user) {
-            setLoyaltyPoints(response.user.loyaltyPoints || 0);
-
-            setFormData(prev => ({
-              ...prev,
-              email: response.user.email || ""
-            }));
-          }
-        } catch (error) {
-          console.error("Failed to fetch user profile:", error);
-        }
-      };
-
-      fetchAddresses();
-      fetchUserProfile();
+      fetchUserData();
     }
   }, []);
+
+  // Fetch user addresses and profile data
+  const fetchUserData = async () => {
+    setAddressesLoading(true);
+    
+    try {
+      // Get user's saved addresses
+      const addressResponse = await AuthService.getAddresses();
+      if (addressResponse.success) {
+        setAddresses(addressResponse.addresses || []);
+        
+        // Set default address if available
+        const defaultAddress = addressResponse.addresses.find(addr => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+          populateAddressForm(defaultAddress);
+        }
+      }
+
+      // Get user's loyalty points
+      const profileResponse = await AuthService.getUserProfile();
+      if (profileResponse.success && profileResponse.user) {
+        setLoyaltyPoints(profileResponse.user.loyaltyPoints || 0);
+
+        setFormData(prev => ({
+          ...prev,
+          email: profileResponse.user.email || ""
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch user data:", error);
+      toast.error("Failed to load your saved addresses");
+    } finally {
+      setAddressesLoading(false);
+    }
+  };
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -108,16 +97,30 @@ const Checkout = () => {
   }, [cartItems, navigate]);
 
   // Handle address selection
-  const handleAddressChange = (e) => {
-    const addressId = e.target.value;
+  const handleAddressChange = (addressId) => {
     setSelectedAddressId(addressId);
     
     if (addressId) {
-      const selectedAddress = addresses.find(addr => addr.id.toString() === addressId);
+      const selectedAddress = addresses.find(addr => addr.id.toString() === addressId.toString());
       if (selectedAddress) {
         populateAddressForm(selectedAddress);
       }
+    } else {
+      // Clear address fields if "Enter new address" is selected
+      setFormData({
+        ...formData,
+        name: formData.name, // Keep the name and email
+        email: formData.email,
+        address: "",
+        city: "",
+        postalCode: "",
+        country: "Vietnam",
+        phone: ""
+      });
     }
+    
+    // Clear any previous form errors
+    setFormErrors({});
   };
 
   // Populate form with selected address
@@ -128,9 +131,34 @@ const Checkout = () => {
       address: address.addressLine1 + (address.addressLine2 ? ", " + address.addressLine2 : ""),
       city: address.city,
       postalCode: address.postalCode,
-      country: address.country,
+      country: address.country || "Vietnam",
       phone: address.phone
     });
+  };
+
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name.trim()) errors.name = "Name is required";
+    if (!isLoggedIn && !formData.email.trim()) errors.email = "Email is required";
+    if (!formData.phone.trim()) errors.phone = "Phone number is required";
+    if (!formData.address.trim()) errors.address = "Address is required";
+    if (!formData.city.trim()) errors.city = "City is required";
+    if (!formData.postalCode.trim()) errors.postalCode = "Postal code is required";
+    
+    // Basic phone validation
+    if (formData.phone && !/^\+?[0-9\s-()]{10,15}$/.test(formData.phone.replace(/\s/g, ''))) {
+      errors.phone = "Please enter a valid phone number";
+    }
+    
+    // Basic email validation
+    if (!isLoggedIn && formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Handle form input changes
@@ -140,6 +168,14 @@ const Checkout = () => {
       ...formData,
       [name]: type === "checkbox" ? checked : value
     });
+    
+    // Clear error for this field when user types
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: null
+      });
+    }
   };
 
   // Handle discount code verification
@@ -196,19 +232,15 @@ const Checkout = () => {
   // Handle checkout submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted");
-  
-    // Basic validation
-    if (!formData.name || (!isLoggedIn && !formData.email) || !formData.phone || !formData.address) {
-      setError("Please fill all required fields");
-      toast.error("Please fill all required fields");
+    
+    // Validate form
+    if (!validateForm()) {
+      setError("Please correct the errors in the form");
       return;
     }
   
     setProcessingOrder(true);
     setError("");
-    
-    console.log("Processing order with data:", formData);
   
     try {
       // Get cart items from Redux store
@@ -238,11 +270,8 @@ const Checkout = () => {
         useLoyaltyPoints: useLoyaltyPoints
       };
       
-      console.log("Submitting order:", JSON.stringify(orderData));
-      
       // Call OrderService to create order
       const response = await OrderService.createOrder(orderData);
-      console.log("Order creation response:", response);
       
       if (response.success) {
         // Clear the cart
@@ -255,7 +284,6 @@ const Checkout = () => {
           // Redirect to order confirmation page
           navigate(`/order-confirmation/${orderId}`);
         } else {
-          console.log("Could not determine order ID from response:", response);
           // Fallback if we can't get the order ID
           toast.success("Order placed successfully!");
           navigate("/");
@@ -272,10 +300,15 @@ const Checkout = () => {
     }
   };
 
+  // Navigate to profile page to add a new address
+  const navigateToAddAddress = () => {
+    navigate("/profile");
+  };
+
   return (
     <Helmet title="Checkout">
       <CommonSection title="Checkout" />
-      <section>
+      <section className="py-5">
         <Container>
           {error && (
             <Alert color="danger" className="mb-4">
@@ -287,168 +320,254 @@ const Checkout = () => {
             <Row>
               {/* Shipping Information */}
               <Col lg="8">
-                <h4 className="mb-4">Shipping Information</h4>
-                
-                {/* Address selection for logged in users */}
-                {isLoggedIn && addresses.length > 0 && (
-                  <FormGroup className="mb-4">
-                    <Label for="addressSelect">Select a saved address</Label>
-                    <Input
-                      type="select"
-                      id="addressSelect"
-                      value={selectedAddressId}
-                      onChange={handleAddressChange}
-                    >
-                      <option value="">-- Enter a new address --</option>
-                      {addresses.map(addr => (
-                        <option key={addr.id} value={addr.id}>
-                          {addr.name} - {addr.addressLine1}, {addr.city}
-                          {addr.isDefault ? " (Default)" : ""}
-                        </option>
-                      ))}
-                    </Input>
-                  </FormGroup>
-                )}
-                
-                <div className="billing__form">
-                  <Row>
-                    <Col md="6" className="form__group mb-3">
-                      <Label for="name">Full Name*</Label>
-                      <Input
-                        type="text"
-                        name="name"
-                        id="name"
-                        placeholder="Enter your full name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                      />
-                    </Col>
-                    
-                    <Col md="6" className="form__group mb-3">
-                      <Label for="email">Email</Label>
-                      <Input
-                        type="email"
-                        name="email"
-                        id="email"
-                        placeholder="Enter your email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required={!isLoggedIn}
-                        disabled={isLoggedIn}
-                      />
-                    </Col>
-                  </Row>
+                <div className="checkout-form-container">
+                  <h4 className="mb-4">Shipping Information</h4>
                   
-                  <Row>
-                    <Col md="6" className="form__group mb-3">
-                      <Label for="phone">Phone Number*</Label>
-                      <Input
-                        type="text"
-                        name="phone"
-                        id="phone"
-                        placeholder="Enter your phone number"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        required
-                      />
-                    </Col>
-                    
-                    <Col md="6" className="form__group mb-3">
-                      <Label for="postalCode">Postal Code*</Label>
-                      <Input
-                        type="text"
-                        name="postalCode"
-                        id="postalCode"
-                        placeholder="Enter postal code"
-                        value={formData.postalCode}
-                        onChange={handleChange}
-                        required
-                      />
-                    </Col>
-                  </Row>
-                  
-                  <FormGroup className="mb-3">
-                    <Label for="address">Address*</Label>
-                    <Input
-                      type="text"
-                      name="address"
-                      id="address"
-                      placeholder="Enter your address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      required
-                    />
-                  </FormGroup>
-                  
-                  <Row>
-                    <Col md="6" className="form__group mb-3">
-                      <Label for="city">City*</Label>
-                      <Input
-                        type="text"
-                        name="city"
-                        id="city"
-                        placeholder="Enter your city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        required
-                      />
-                    </Col>
-                    
-                    <Col md="6" className="form__group mb-3">
-                      <Label for="country">Country*</Label>
-                      <Input
-                        type="text"
-                        name="country"
-                        id="country"
-                        placeholder="Enter your country"
-                        value={formData.country}
-                        onChange={handleChange}
-                        required
-                      />
-                    </Col>
-                  </Row>
-                </div>
-                
-                {/* Payment Method */}
-                <div className="payment__method mt-5">
-                  <h4 className="mb-4">Payment Method</h4>
-                  
-                  <FormGroup check className="mb-3">
-                    <Input
-                      type="radio"
-                      name="paymentMethod"
-                      id="cod"
-                      value="cod"
-                      checked={formData.paymentMethod === "cod"}
-                      onChange={handleChange}
-                    />
-                    <Label check for="cod">
-                      Cash on Delivery
-                    </Label>
-                  </FormGroup>
-                  
-                  <FormGroup check className="mb-3">
-                    <Input
-                      type="radio"
-                      name="paymentMethod" 
-                      id="card"
-                      value="card"
-                      checked={formData.paymentMethod === "card"}
-                      onChange={handleChange}
-                    />
-                    <Label check for="card">
-                      Credit/Debit Card (Coming Soon)
-                    </Label>
-                  </FormGroup>
-                  
-                  {formData.paymentMethod === "card" && (
-                    <div className="mt-3 mb-4 p-3 bg-light rounded">
-                      <p className="mb-0 text-muted">
-                        Credit card payment is not yet implemented. Please select Cash on Delivery.
-                      </p>
+                  {/* Address selection for logged in users */}
+                  {isLoggedIn && (
+                    <div className="mb-4">
+                      <Label className="mb-3 fw-bold">Choose delivery address</Label>
+                      
+                      {addressesLoading ? (
+                        <div className="text-center p-4 bg-light rounded">
+                          <Spinner color="primary" size="sm" className="me-2" />
+                          <span>Loading your addresses...</span>
+                        </div>
+                      ) : addresses.length > 0 ? (
+                        <>
+                          <div className="address-cards mb-3">
+                            <Row>
+                              {/* New address card option */}
+                              <Col md="6" lg="4" className="mb-3">
+                                <Card 
+                                  onClick={() => handleAddressChange("")}
+                                  className={`h-100 address-card border ${selectedAddressId === "" ? "border-primary" : ""}`}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <CardBody className="d-flex flex-column justify-content-center align-items-center text-center p-3">
+                                    <div className="mb-3">
+                                      <i className="ri-add-circle-line fs-2"></i>
+                                    </div>
+                                    <h6>Enter a new address</h6>
+                                  </CardBody>
+                                </Card>
+                              </Col>
+                              
+                              {/* Saved addresses */}
+                              {addresses.map(address => (
+                                <Col md="6" lg="4" className="mb-3" key={address.id}>
+                                  <Card 
+                                    onClick={() => handleAddressChange(address.id)}
+                                    className={`h-100 address-card ${selectedAddressId === address.id ? "border border-primary" : ""}`}
+                                    style={{ cursor: "pointer" }}
+                                  >
+                                    <CardBody className="p-3">
+                                      <div className="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 className="mb-0">{address.name}</h6>
+                                        {address.isDefault && (
+                                          <Badge color="primary" pill>Default</Badge>
+                                        )}
+                                      </div>
+                                      <p className="small mb-1">{address.addressLine1}</p>
+                                      {address.addressLine2 && <p className="small mb-1">{address.addressLine2}</p>}
+                                      <p className="small mb-1">{address.city}, {address.state} {address.postalCode}</p>
+                                      <p className="small mb-1">{address.country}</p>
+                                      <p className="small mb-0">{address.phone}</p>
+                                    </CardBody>
+                                  </Card>
+                                </Col>
+                              ))}
+                            </Row>
+                          </div>
+                          
+                          <div className="text-end">
+                            <Button color="outline-primary" size="sm" onClick={navigateToAddAddress}>
+                              <i className="ri-add-line me-1"></i> Add New Address
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mb-4 p-4 bg-light rounded text-center">
+                          <p className="mb-2">You don't have any saved addresses yet.</p>
+                          <Button color="primary" size="sm" onClick={navigateToAddAddress}>
+                            <i className="ri-add-line me-1"></i> Add Address
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
+                  
+                  <div className="billing__form">
+                    {(!isLoggedIn || selectedAddressId === "" || addresses.length === 0) && (
+                      <>
+                        <h5 className="mb-3">Enter shipping details</h5>
+                        
+                        <Row>
+                          <Col md="6" className="form__group mb-3">
+                            <Label for="name">Full Name*</Label>
+                            <Input
+                              type="text"
+                              name="name"
+                              id="name"
+                              placeholder="Enter your full name"
+                              value={formData.name}
+                              onChange={handleChange}
+                              required
+                              invalid={!!formErrors.name}
+                            />
+                            {formErrors.name && (
+                              <div className="text-danger small mt-1">{formErrors.name}</div>
+                            )}
+                          </Col>
+                          
+                          <Col md="6" className="form__group mb-3">
+                            <Label for="email">Email{!isLoggedIn ? '*' : ''}</Label>
+                            <Input
+                              type="email"
+                              name="email"
+                              id="email"
+                              placeholder="Enter your email"
+                              value={formData.email}
+                              onChange={handleChange}
+                              required={!isLoggedIn}
+                              disabled={isLoggedIn}
+                              invalid={!!formErrors.email}
+                            />
+                            {formErrors.email && (
+                              <div className="text-danger small mt-1">{formErrors.email}</div>
+                            )}
+                          </Col>
+                        </Row>
+                        
+                        <Row>
+                          <Col md="6" className="form__group mb-3">
+                            <Label for="phone">Phone Number*</Label>
+                            <Input
+                              type="text"
+                              name="phone"
+                              id="phone"
+                              placeholder="Enter your phone number"
+                              value={formData.phone}
+                              onChange={handleChange}
+                              required
+                              invalid={!!formErrors.phone}
+                            />
+                            {formErrors.phone && (
+                              <div className="text-danger small mt-1">{formErrors.phone}</div>
+                            )}
+                          </Col>
+                          
+                          <Col md="6" className="form__group mb-3">
+                            <Label for="postalCode">Postal Code*</Label>
+                            <Input
+                              type="text"
+                              name="postalCode"
+                              id="postalCode"
+                              placeholder="Enter postal code"
+                              value={formData.postalCode}
+                              onChange={handleChange}
+                              required
+                              invalid={!!formErrors.postalCode}
+                            />
+                            {formErrors.postalCode && (
+                              <div className="text-danger small mt-1">{formErrors.postalCode}</div>
+                            )}
+                          </Col>
+                        </Row>
+                        
+                        <FormGroup className="mb-3">
+                          <Label for="address">Address*</Label>
+                          <Input
+                            type="text"
+                            name="address"
+                            id="address"
+                            placeholder="Enter your address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            required
+                            invalid={!!formErrors.address}
+                          />
+                          {formErrors.address && (
+                            <div className="text-danger small mt-1">{formErrors.address}</div>
+                          )}
+                        </FormGroup>
+                        
+                        <Row>
+                          <Col md="6" className="form__group mb-3">
+                            <Label for="city">City*</Label>
+                            <Input
+                              type="text"
+                              name="city"
+                              id="city"
+                              placeholder="Enter your city"
+                              value={formData.city}
+                              onChange={handleChange}
+                              required
+                              invalid={!!formErrors.city}
+                            />
+                            {formErrors.city && (
+                              <div className="text-danger small mt-1">{formErrors.city}</div>
+                            )}
+                          </Col>
+                          
+                          <Col md="6" className="form__group mb-3">
+                            <Label for="country">Country*</Label>
+                            <Input
+                              type="text"
+                              name="country"
+                              id="country"
+                              placeholder="Enter your country"
+                              value={formData.country}
+                              onChange={handleChange}
+                              required
+                            />
+                          </Col>
+                        </Row>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Payment Method */}
+                  <div className="payment__method mt-5">
+                    <h4 className="mb-4">Payment Method</h4>
+                    
+                    <FormGroup check className="mb-3">
+                      <Input
+                        type="radio"
+                        name="paymentMethod"
+                        id="cod"
+                        value="cod"
+                        checked={formData.paymentMethod === "cod"}
+                        onChange={handleChange}
+                      />
+                      <Label check for="cod" className="d-flex align-items-center">
+                        <i className="ri-money-dollar-circle-line me-2 fs-5"></i>
+                        <div>
+                          <span className="fw-bold">Cash on Delivery</span>
+                          <p className="mb-0 small text-muted">Pay when your order arrives</p>
+                        </div>
+                      </Label>
+                    </FormGroup>
+                    
+                    <FormGroup check className="mb-3">
+                      <Input
+                        type="radio"
+                        name="paymentMethod" 
+                        id="card"
+                        value="card"
+                        checked={formData.paymentMethod === "card"}
+                        onChange={handleChange}
+                        disabled
+                      />
+                      <Label check for="card" className="d-flex align-items-center">
+                        <i className="ri-bank-card-line me-2 fs-5"></i>
+                        <div>
+                          <span className="fw-bold">Credit/Debit Card</span>
+                          <p className="mb-0 small text-muted">Coming Soon</p>
+                        </div>
+                      </Label>
+                    </FormGroup>
+                  </div>
                 </div>
               </Col>
               
@@ -456,6 +575,20 @@ const Checkout = () => {
               <Col lg="4">
                 <div className="checkout__cart">
                   <h4 className="mb-4">Order Summary</h4>
+                  
+                  {/* Cart items summary */}
+                  <div className="cart-items-summary mb-4">
+                    <h6 className="mb-3">Items in Cart ({cartItems.length})</h6>
+                    {cartItems.map((item, index) => (
+                      <div key={index} className="d-flex justify-content-between mb-2">
+                        <span className="text-truncate" style={{maxWidth: "70%"}}>
+                          {item.productName || item.name} × {item.quantity}
+                          {item.variant && <small className="ms-1 text-muted">({item.variant.name})</small>}
+                        </span>
+                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
                   
                   {/* Discount Code */}
                   <div className="mb-4">
@@ -478,6 +611,12 @@ const Checkout = () => {
                         {verifyingDiscount ? <Spinner size="sm" /> : "Apply"}
                       </Button>
                     </div>
+                    {discount > 0 && (
+                      <div className="mt-2 text-success small">
+                        <i className="ri-check-line me-1"></i>
+                        Discount code applied: {discount}% off
+                      </div>
+                    )}
                   </div>
                   
                   {/* Loyalty Points */}
@@ -489,50 +628,66 @@ const Checkout = () => {
                         checked={useLoyaltyPoints}
                         onChange={(e) => setUseLoyaltyPoints(e.target.checked)}
                       />
-                      <Label check for="useLoyaltyPoints">
-                        Use {loyaltyPoints.toFixed(2)} loyalty points
+                      <Label check for="useLoyaltyPoints" className="d-flex justify-content-between w-100">
+                        <span>Use loyalty points</span>
+                        <span className="fw-bold">${loyaltyPoints.toFixed(2)}</span>
                       </Label>
                     </FormGroup>
                   )}
                   
-                  <h6>
-                    Subtotal: <span>${totals.subtotal}</span>
-                  </h6>
-                  
-                  <h6>
-                    Shipping: <span>${totals.shipping}</span>
-                  </h6>
-                  
-                  {discount > 0 && (
-                    <h6>
-                      Discount ({discount}%): <span>-${totals.discount}</span>
-                    </h6>
-                  )}
-                  
-                  {useLoyaltyPoints && loyaltyPoints > 0 && (
-                    <h6>
-                      Loyalty Points: <span>-${totals.points}</span>
-                    </h6>
-                  )}
-                  
-                  <h4>
-                    Total: <span>${totals.total}</span>
-                  </h4>
+                  {/* Totals */}
+                  <div className="order-totals">
+                    <div className="d-flex justify-content-between mb-2">
+                      <span>Subtotal:</span>
+                      <span>${totals.subtotal}</span>
+                    </div>
+                    
+                    <div className="d-flex justify-content-between mb-2">
+                      <span>Shipping:</span>
+                      <span>${totals.shipping}</span>
+                    </div>
+                    
+                    {discount > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-success">
+                        <span>Discount ({discount}%):</span>
+                        <span>-${totals.discount}</span>
+                      </div>
+                    )}
+                    
+                    {useLoyaltyPoints && loyaltyPoints > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-success">
+                        <span>Loyalty Points:</span>
+                        <span>-${totals.points}</span>
+                      </div>
+                    )}
+                    
+                    <div className="d-flex justify-content-between mt-3 pt-3 border-top fw-bold">
+                      <span>Total:</span>
+                      <span className="fs-5">${totals.total}</span>
+                    </div>
+                  </div>
                   
                   <Button
                     color="primary"
                     type="submit"
                     className="buy__btn w-100 mt-4"
                     disabled={processingOrder}
+                    size="lg"
                   >
                     {processingOrder ? (
                       <>
-                        <Spinner size="sm" /> Processing Order...
+                        <Spinner size="sm" className="me-2" /> Processing Order...
                       </>
                     ) : (
                       "Place Order"
                     )}
                   </Button>
+                  
+                  <div className="text-center mt-3">
+                    <Link to="/cart" className="text-decoration-none">
+                      <i className="ri-arrow-left-line me-1"></i> Return to Cart
+                    </Link>
+                  </div>
                 </div>
               </Col>
             </Row>

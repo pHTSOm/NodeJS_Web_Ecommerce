@@ -168,16 +168,23 @@ const Header = () => {
                 />
                 
                 {isLoggedIn && (
-                  <div className="user__dropdown">
+                    <div className="user__dropdown">
+                      <span className="user__dropdown-item" onClick={() => navigate("/profile")}>
+                        <i className="ri-user-line me-2"></i>
+                        My Profile
+                      </span>
                       <span className="user__dropdown-item" onClick={() => navigate("/orders")}>
+                        <i className="ri-file-list-line me-2"></i>
                         My Orders
                       </span>
-                    {isAdmin && (
-                      <span className="user__dropdown-item" onClick={navigateToAdminDashboard}>
-                        Admin Dashboard
-                      </span>
-                    )}
+                      {isAdmin && (
+                        <span className="user__dropdown-item" onClick={navigateToAdminDashboard}>
+                          <i className="ri-dashboard-line me-2"></i>
+                          Admin Dashboard
+                        </span>
+                      )}
                     <span className="user__dropdown-item" onClick={handleLogout}>
+                        <i className="ri-logout-box-line me-2"></i>
                       Logout
                     </span>
                   </div>
