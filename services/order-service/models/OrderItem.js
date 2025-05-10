@@ -22,18 +22,19 @@ const OrderItem = sequelize.define('OrderItem', {
   quantity: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    validate: {
-      min: 1
-    }
+    defaultValue: 1
   },
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  // Store product & variant data as JSON for historical record
+  totalPrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false
+  },
   productData: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: true // Store a snapshot of the product data
   }
 });
 

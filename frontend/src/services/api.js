@@ -328,19 +328,36 @@ export const ReviewService = {
 export const OrderService = {
   createOrder: async (orderData) => {
     try {
+      console.log('Submitting order:', orderData);
+      console.log('Calling createOrder API with data:', orderData);
+      
       const response = await API.post('/orders', orderData, {
         withCredentials: true
       });
+      
+      console.log('Raw API response:', response);
+      console.log('Response data:', response.data);
+      
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data
+        } : 'No response',
+        request: error.request ? 'Request sent but no response' : 'Request setup failed'
+      });
       throw error;
     }
   },
   
   getUserOrders: async (params = {}) => {
     try {
+      console.log('Fetching user orders with params:', params);
       const response = await API.get('/orders', { params });
+      console.log('User orders response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching user orders:', error);

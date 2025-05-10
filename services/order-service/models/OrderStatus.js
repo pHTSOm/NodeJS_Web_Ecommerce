@@ -12,20 +12,13 @@ const OrderStatus = sequelize.define('OrderStatus', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled'),
     allowNull: false
   },
-  notes: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  updatedBy: {
-    type: DataTypes.INTEGER, // User ID of admin who made the update
+  note: {
+    type: DataTypes.STRING,
     allowNull: true
   }
-}, {
-  timestamps: true,
-  updatedAt: false // We only need createdAt for status history
 });
 
 module.exports = OrderStatus;

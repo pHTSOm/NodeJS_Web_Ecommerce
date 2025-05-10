@@ -305,11 +305,11 @@ exports.createProduct = async (req, res) => {
       console.log("Product created:", product.id);
 
       // Handle variants if provided
-      if (req.body.variants && typeof req.body.variants === 'string') {
+      if (req.body.variants && typeof req.body.variants === "string") {
         try {
           const variants = JSON.parse(req.body.variants);
-          console.log('Processing variants:', variants);
-          
+          console.log("Processing variants:", variants);
+
           if (Array.isArray(variants)) {
             for (const variant of variants) {
               try {
@@ -319,16 +319,20 @@ exports.createProduct = async (req, res) => {
                   description: variant.description || variant.name,
                   additionalPrice: variant.additionalPrice || 0,
                   stock: variant.stock || 0,
-                  sku: variant.sku || `${product.id}-${variant.name}`
+                  sku: variant.sku || `${product.id}-${variant.name}`,
                 });
-                console.log('Created variant:', newVariant.id, variant.name);
+                console.log("Created variant:", newVariant.id, variant.name);
               } catch (variantError) {
-                console.error('Failed to create variant:', variant.name, variantError);
+                console.error(
+                  "Failed to create variant:",
+                  variant.name,
+                  variantError
+                );
               }
             }
           }
         } catch (parseError) {
-          console.error('Error parsing variants:', parseError);
+          console.error("Error parsing variants:", parseError);
         }
       }
 
@@ -508,6 +512,8 @@ exports.updateProduct = async (req, res) => {
 // Delete product
 exports.deleteProduct = async (req, res) => {
   try {
+    console.log(`Attempting to delete product with ID: ${req.params.id}`);
+
     const product = await Product.findByPk(req.params.id);
     if (!product) {
       return res.status(404).json({
@@ -518,11 +524,18 @@ exports.deleteProduct = async (req, res) => {
 
     // Delete product image if exists
     if (product.imgUrl) {
+      console.log("Found imgUrl to delete:", product.imgUrl);
       try {
         let images = [];
         if (typeof product.imgUrl === "string") {
           if (product.imgUrl.startsWith("[")) {
-            images = JSON.parse(product.imgUrl);
+            try {
+              images = JSON.parse(product.imgUrl);
+              console.log("Parsed JSON image array:", images);
+            } catch (jsonError) {
+              console.error("Error parsing imgUrl JSON:", jsonError);
+              images = [product.imgUrl];
+            }
           } else {
             images = [product.imgUrl];
           }
@@ -532,18 +545,45 @@ exports.deleteProduct = async (req, res) => {
 
         // Delete each image
         for (const img of images) {
-          const imagePath = path.join(__dirname, "../public", img);
-          if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
+          try {
+            if (!img) continue; // Skip null or empty values
+
+            const imagePath = path.join(__dirname, "../public", img);
+            console.log("Attempting to delete image at path:", imagePath);
+
+            if (fs.existsSync(imagePath)) {
+              fs.unlinkSync(imagePath);
+              console.log("Successfully deleted image at path:", imagePath);
+            } else {
+              console.log("Image path does not exist:", imagePath);
+            }
+          } catch (imgError) {
+            console.error(`Error deleting image ${img}:`, imgError);
+            // Continue with other images even if one fails
           }
         }
-      } catch (error) {
-        console.error("Error deleting product images:", error);
+      } catch (imageError) {
+        console.error("Error processing product images:", imageError);
+        // Continue with product deletion even if image deletion fails
       }
     }
 
-    // Delete product from database (cascades to variants and reviews)
+    // Explicitly delete associated variants first
+    try {
+      console.log("Deleting product variants...");
+      await ProductVariant.destroy({
+        where: { productId: product.id },
+      });
+      console.log("Successfully deleted variants");
+    } catch (variantError) {
+      console.error("Error deleting product variants:", variantError);
+      // Continue with product deletion
+    }
+
+    // Now delete the product
+    console.log("Deleting the product...");
     await product.destroy();
+    console.log("Product successfully deleted");
 
     res.json({
       success: true,
@@ -554,6 +594,7 @@ exports.deleteProduct = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
+      error: error.message,
     });
   }
 };

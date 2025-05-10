@@ -14,6 +14,10 @@ const sequelize = new Sequelize(
       min: 0,
       acquire: 30000,
       idle: 10000
+    },
+    retry: {
+      match: [/Deadlock/i, /ER_LOCK_DEADLOCK/],
+      max: 3
     }
   }
 );
@@ -31,32 +35,59 @@ const testConnection = async () => {
 
 const initializeDatabase = async () => {
   try {
-    // Import models first to ensure they're defined
+    // Import models
     const Order = require('../models/Order');
     const OrderItem = require('../models/OrderItem');
     const OrderStatus = require('../models/OrderStatus');
     
-    // Define relationships
+    // Define associations
     Order.hasMany(OrderItem, { 
       foreignKey: 'orderId', 
-      onDelete: 'CASCADE'
+      as: 'OrderItems',
+      onDelete: 'CASCADE' 
     });
     OrderItem.belongsTo(Order, { 
-      foreignKey: 'orderId'
+      foreignKey: 'orderId' 
     });
     
     Order.hasMany(OrderStatus, { 
       foreignKey: 'orderId', 
-      onDelete: 'CASCADE'
+      as: 'StatusHistory',
+      onDelete: 'CASCADE' 
     });
     OrderStatus.belongsTo(Order, { 
-      foreignKey: 'orderId'
+      foreignKey: 'orderId' 
     });
-
-    // Sync with database
-    await sequelize.sync({ alter: true });
-    console.log('Database models synced successfully');
-    return true;
+    
+    // Sync with database (with retry mechanism)
+    let retries = 0;
+    const maxRetries = 5;
+    
+    while (retries < maxRetries) {
+      try {
+        await sequelize.sync({ alter: true });
+        console.log('Database synchronized successfully');
+        return true;
+      } catch (error) {
+        retries++;
+        console.error(`Database sync failed (attempt ${retries}/${maxRetries}):`, error.message);
+        
+        if (retries === maxRetries) {
+          console.error('All sync attempts failed, trying simpler sync without alter');
+          try {
+            await sequelize.sync();
+            console.log('Simple database sync successful');
+            return true;
+          } catch (simpleError) {
+            console.error('Simple sync also failed:', simpleError);
+            return false;
+          }
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
   } catch (error) {
     console.error('Database initialization failed:', error);
     return false;
