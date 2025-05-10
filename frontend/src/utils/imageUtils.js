@@ -7,8 +7,8 @@ export const processImageUrl = (imgUrl) => {
     if (imgUrl.startsWith("/uploads/")) return imgUrl;
     
     if (imgUrl.startsWith("/products/")) {
-      // Sanitize path to avoid double slashes
-      return `/uploads${imgUrl}`.replace('/products//products/', '/products/');
+      // Fix double path issue by normalizing the path
+      return `/uploads${imgUrl}`.replace(/\/+/g, '/');
     }
     
     // Other relative paths - assume products folder
