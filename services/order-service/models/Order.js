@@ -9,49 +9,18 @@ const Order = sequelize.define('Order', {
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: true // Can be null for guest orders
-  },
-  guestId: {
-    type: DataTypes.STRING,
-    allowNull: true // Used for guest checkout
+    allowNull: true // Allow guest orders (null userId)
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      isEmail: true
-    }
+    allowNull: false
   },
   totalAmount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  shippingCost: {
-    type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0.00
-  },
-  tax: {
-    type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0.00
-  },
-  discountCode: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  discountAmount: {
-    type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0.00
-  },
-  loyaltyPointsEarned: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
-  loyaltyPointsUsed: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
-  currentStatus: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'),
+  status: {
+    type: DataTypes.ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled'),
     defaultValue: 'pending'
   },
   shippingAddress: {
@@ -63,15 +32,33 @@ const Order = sequelize.define('Order', {
     allowNull: false
   },
   paymentStatus: {
-    type: DataTypes.ENUM('pending', 'completed', 'failed', 'refunded'),
+    type: DataTypes.ENUM('pending', 'paid', 'failed'),
     defaultValue: 'pending'
   },
-  notes: {
-    type: DataTypes.TEXT,
+  discountCode: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  discountAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
+  },
+  shippingFee: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
+  },
+  loyaltyPointsUsed: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
+  },
+  loyaltyPointsEarned: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
+  },
+  trackingNumber: {
+    type: DataTypes.STRING,
     allowNull: true
   }
-}, {
-  timestamps: true
 });
 
 module.exports = Order;

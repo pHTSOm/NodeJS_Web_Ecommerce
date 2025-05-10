@@ -1,37 +1,85 @@
-import React from "react";
-import { Container, Row, Col, Button } from "reactstrap";
-import { Link, useParams } from "react-router-dom";
-import Helmet from "../components/Helmet/Helmet";
-import CommonSection from "../components/UI/CommonSection";
-
+import React, { useState, useEffect } from 'react';
+import { Container, Row, Col, Card, Button } from 'reactstrap';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { OrderService } from '../services/api';
+import CommonSection from '../components/UI/CommonSection';
+import Helmet from '../components/Helmet/Helmet';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Try to fetch the order details, but don't block confirmation if it fails
+    const fetchOrder = async () => {
+      setLoading(true);
+      try {
+        const response = await OrderService.getOrderDetails(orderId);
+        if (response && response.success && response.order) {
+          setOrder(response.order);
+        } else {
+          // If order details aren't available, still show confirmation
+          console.log('Order details not available, using basic confirmation');
+        }
+      } catch (error) {
+        console.error('Error fetching order details:', error);
+        // Just log the error - don't set error state which would show error UI
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId]);
 
   return (
     <Helmet title="Order Confirmation">
       <CommonSection title="Order Confirmation" />
-      <section>
+      <section className="py-5 bg-light">
         <Container>
-          <Row>
-            <Col lg="8" className="mx-auto">
-              <div className="card shadow-sm mb-5">
-                <div className="card-body text-center py-5">
+          <Row className="justify-content-center">
+            <Col md={8}>
+              <Card className="shadow-sm border-0">
+                <div className="card-body p-5 text-center">
                   <div className="mb-4">
-                    <i className="ri-check-double-line" style={{ fontSize: '4rem', color: 'green' }}></i>
+                    <i className="ri-checkbox-circle-line text-success" style={{ fontSize: '4rem' }}></i>
                   </div>
-                  <h2>Thank You for Your Order!</h2>
-                  <p className="lead mb-4">
-                    Your order #{orderId} has been placed successfully.
+                  
+                  <h2 className="mb-3">Thank You For Your Order!</h2>
+                  <p className="mb-4">Your order has been placed successfully and is being processed.</p>
+                  
+                  <div className="order-confirmation-details mb-4">
+                    <h5 className="border-bottom pb-2 mb-3">Order Information</h5>
+                    <p className="mb-1"><strong>Order Number:</strong> #{orderId}</p>
+                    {order && (
+                      <>
+                        <p className="mb-1"><strong>Date:</strong> {new Date(order.createdAt).toLocaleString()}</p>
+                        <p className="mb-1"><strong>Total Amount:</strong> ${parseFloat(order.totalAmount).toFixed(2)}</p>
+                        <p className="mb-1"><strong>Status:</strong> {order.status}</p>
+                        <p className="mb-1"><strong>Payment Method:</strong> {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Credit Card'}</p>
+                      </>
+                    )}
+                  </div>
+                  
+                  <p className="text-muted mb-4">
+                    We've sent a confirmation email with all the details of your order.
+                    {order?.email && ` A copy has been sent to ${order.email}.`}
                   </p>
-                  <p>A confirmation email will be sent to your email address.</p>
-                  <div className="d-flex justify-content-center gap-3 mt-4">
-                    <Button tag={Link} to="/shop" color="primary">
+                  
+                  <div className="d-flex justify-content-center gap-3">
+                    <Button color="primary" tag={Link} to="/shop">
                       Continue Shopping
+                    </Button>
+                    
+                    <Button color="outline-primary" tag={Link} to="/orders">
+                      View Orders
                     </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             </Col>
           </Row>
         </Container>
