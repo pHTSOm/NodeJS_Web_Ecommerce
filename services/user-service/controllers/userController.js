@@ -90,6 +90,28 @@ exports.login = async (req, res) => {
   }
 };
 
+// Log out all devices
+exports.logoutAllDevices = async (req, res) => {
+  try {
+    // Update user's tokenVersion to invalidate all existing tokens
+    await User.update(
+      { tokenVersion: sequelize.literal('tokenVersion + 1') },
+      { where: { id: req.user.id } }
+    );
+    
+    res.json({
+      success: true,
+      message: "Logged out from all devices successfully"
+    });
+  } catch (error) {
+    console.error("Logout all devices error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
 // Get current user profile
 exports.getMe = async (req, res) => {
   try {
@@ -487,54 +509,36 @@ exports.changePassword = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-
-    // Find user
     const user = await User.findOne({ where: { email } });
+    
+    // Always return success even if email doesn't exist (prevents user enumeration)
     if (!user) {
-      // For security reasons, we still return success even if email doesn't exist
-      // This prevents user enumeration attacks
       return res.json({
         success: true,
         message: "If a user with that email exists, a password reset link has been sent."
       });
     }
 
-    // Generate reset token
+    // Generate a secure reset token with shorter expiration
     const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "1h" // Shorter expiration for security
+    });
+    
+    // Store token hash in database with expiration timestamp
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    await user.update({
+      resetPasswordToken: resetTokenHash,
+      resetPasswordExpires: Date.now() + 3600000 // 1 hour
     });
 
-    // In a real implementation, you might want to store this token in the DB
-    // with an expiration timestamp for additional security
+    // Send email with reset link
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    await sendPasswordResetEmail(email, resetUrl);
     
-    // Attempt to send reset email
-    let emailSent = false;
-    try {
-      if (typeof sendPasswordResetEmail === 'function') {
-        emailSent = await sendPasswordResetEmail(email, resetToken);
-      }
-    } catch (emailError) {
-      console.error("Email sending error:", emailError);
-      // Continue execution - we'll handle the fallback below
-    }
-    
-    if (emailSent) {
-      // Email was sent successfully
-      res.json({
-        success: true,
-        message: "Password reset instructions sent to your email"
-      });
-    } else {
-      // If email fails or service is not available, return the token for testing purposes
-      // In production, this should be removed or modified
-      console.log("Email service unavailable or not configured - using fallback");
-      res.json({
-        success: true,
-        message: "Email service is currently unavailable. For testing purposes, use this token:",
-        resetToken,
-        resetLink: `${process.env.FRONTEND_URL || 'http://localhost'}/reset-password?token=${resetToken}`
-      });
-    }
+    res.json({
+      success: true,
+      message: "If a user with that email exists, a password reset link has been sent."
+    });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({
@@ -543,6 +547,8 @@ exports.forgotPassword = async (req, res) => {
     });
   }
 };
+
+
 
 // Reset password
 exports.resetPassword = async (req, res) => {

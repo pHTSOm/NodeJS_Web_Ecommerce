@@ -112,15 +112,11 @@ const Header = () => {
     }
   ];
   
-  // Only add AddProduct link if user is admin
-  if (isLoggedIn && isAdmin) {
+  // Only add AdminDashboard link if user is admin
+  if (isLoggedIn && isAdmin) {    
     nav__links.push({
-      path: "admin/products",
-      display: "Manage Products",
-    });
-    nav__links.push({
-      path: "addproduct",
-      display: "Add Product",
+      path: "/admin/dashboard",
+      display: "Admin Dashboard",
     });
   }
 
