@@ -28,7 +28,7 @@ const ProductVariant = sequelize.define('ProductVariant', {
         defaultValue: 0
     },
     sku:{
-        type:DataTypes.DECIMAL(10,2),
+        type: DataTypes.STRING,
         allowNull: false
     }
 });

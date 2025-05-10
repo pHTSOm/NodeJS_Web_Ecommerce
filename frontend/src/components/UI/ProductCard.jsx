@@ -1,102 +1,64 @@
-import React from 'react';
-import {motion} from 'framer-motion';
-import "../../styles/product-card.css"
-import { Col } from 'reactstrap';
-import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import { useDispatch } from 'react-redux';
-import { addItemToCart } from '../../slices/cartSlice';
+import React from "react";
+import { motion } from "framer-motion";
+import "../../styles/product-card.css";
+import { Col } from "reactstrap";
+import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
+import { useDispatch } from "react-redux";
+import { addItemToCart } from "../../slices/cartSlice";
+import { hasProductVariants } from '../../utils/productUtils';
+import { getImageUrl } from '../../utils/imageUtils';
 
-const ProductCard = ({item}) => {
+const ProductCard = ({ item }) => {
   const dispatch = useDispatch();
 
-  // Improved image URL handling
-  const getImageUrl = (imgUrl) => {
-    // Default fallback image
-    if (!imgUrl) return '/placeholder.png';
-    
-    try {
-      // Parse JSON string if needed
-      let imageSource = imgUrl;
-      
-      if (typeof imgUrl === 'string' && imgUrl.startsWith('[')) {
-        try {
-          const parsed = JSON.parse(imgUrl);
-          // Use first image from array if available
-          imageSource = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
-        } catch (e) {
-          console.error('Failed to parse image JSON:', e);
-          imageSource = imgUrl; // Keep as is if parsing fails
-        }
-      } else if (Array.isArray(imgUrl) && imgUrl.length > 0) {
-        imageSource = imgUrl[0]; // Use first image from array
-      }
-      
-      // Handle null or empty string
-      if (!imageSource) return '/placeholder.png';
-      
-      // Handle full URLs
-      if (imageSource.startsWith('http')) {
-        return imageSource;
-      }
-      
-      // Format path for local images
-      if (imageSource.startsWith('/uploads/')) {
-        return imageSource;
-      } else if (imageSource.startsWith('/products/')) {
-        return `/uploads${imageSource}`;
-      } else {
-        return `/uploads/products/${imageSource.replace(/^\//, '')}`;
-      }
-    } catch (error) {
-      console.error('Error processing image URL:', error);
-      return '/placeholder.png';
-    }
-  };
-
   const imageUrl = getImageUrl(item.imgUrl);
-  console.log(`Product ${item.id}: ${item.productName} - Image URL: ${imageUrl}`);
+  console.log(
+    `Product ${item.id}: ${item.productName} - Image URL: ${imageUrl}`
+  );
 
   // Format price to display with 2 decimal places
   const formattedPrice = parseFloat(item.price).toFixed(2);
 
   // Determine if the product has variants
-  const hasVariants = item.ProductVariants && item.ProductVariants.length > 0;
+  const hasVariants = hasProductVariants(item);
 
   const addToCart = () => {
     // If product has variants, redirect to product details instead of adding to cart directly
     if (hasVariants) {
-      toast.warning('Please select a variant before adding to cart');
+      toast.warning("Please select a variant before adding to cart");
       return;
     }
 
-    dispatch(addItemToCart({
-      productId: item.id,
-      variantId: null,
-      quantity: 1
-    }))
+    dispatch(
+      addItemToCart({
+        productId: item.id,
+        variantId: null,
+        quantity: 1,
+      })
+    )
       .unwrap()
       .then(() => {
-        toast.success('Product added to cart');
+        toast.success("Product added to cart");
       })
       .catch((error) => {
-        toast.error(error.message || 'Failed to add product to cart');
+        toast.error(error.message || "Failed to add product to cart");
       });
   };
 
   return (
-    <Col lg='3' md='4' className="mb-2">
+    <Col lg="3" md="4" className="mb-2">
       <div className="product__item">
         <div className="product__img">
           <Link to={`/shop/${item.id}`}>
-            <motion.img 
-              whileHover={{ scale: 0.9 }} 
-              src={imageUrl} 
+            <motion.img
+              whileHover={{ scale: 0.9 }}
+              src={imageUrl}
               alt={item.productName}
-              style={{ width: '100%', height: '200px', objectFit: 'contain' }}
+              style={{ width: "100%", height: "200px", objectFit: "contain" }}
               onError={(e) => {
                 console.error(`Failed to load image: ${imageUrl}`);
-                e.target.src = '/placeholder.png'; 
+                e.target.src = "/placeholder.png";
               }}
             />
           </Link>
@@ -114,33 +76,41 @@ const ProductCard = ({item}) => {
             <div className="product__rating">
               {[...Array(5)].map((_, index) => (
                 <span key={index}>
-                  <i className={`ri-star-${index < Math.round(item.avgRating) ? 'fill' : 'line'}`}></i>
+                  <i
+                    className={`ri-star-${
+                      index < Math.round(item.avgRating) ? "fill" : "line"
+                    }`}
+                  ></i>
                 </span>
               ))}
-              <span className="rating-count">({item.avgRating.toFixed(1)})</span>
+              <span className="rating-count">
+                ({item.avgRating.toFixed(1)})
+              </span>
             </div>
           )}
         </div>
 
         <div className="product__card-bottom d-flex align-items-center justify-content-between p-2">
           <span className="price">${formattedPrice}</span>
-          
+
           {item.isNew && <span className="badge new-badge">New</span>}
-          {item.isBestSeller && <span className="badge bestseller-badge">Bestseller</span>}
-          
-          <motion.span 
-            whileTap={{ scale: 1.2 }} 
+          {item.isBestSeller && (
+            <span className="badge bestseller-badge">Bestseller</span>
+          )}
+
+          <motion.span
+            whileTap={{ scale: 1.2 }}
             className="add-to-cart"
             onClick={hasVariants ? () => {} : addToCart}
           >
-            <Link to={hasVariants ? `/shop/${item.id}` : '#'}>
+            <Link to={hasVariants ? `/shop/${item.id}` : "#"}>
               <i className={hasVariants ? "ri-eye-line" : "ri-add-line"}></i>
             </Link>
           </motion.span>
         </div>
       </div>
-    </Col>    
+    </Col>
   );
-}
+};
 
 export default ProductCard;
