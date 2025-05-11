@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import CommonSection from "../components/UI/CommonSection";
 import Helmet from "../components/Helmet/Helmet";
 import { Container, Row, Col, Form, FormGroup, Input, Label, Button } from "reactstrap";
@@ -11,6 +11,15 @@ import { ProductService  } from "../services/api";
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const Shop = () => {
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return function(...args) {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func.apply(this, args);
+      }, delay);
+    };
+  };
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
@@ -23,6 +32,7 @@ const Shop = () => {
   const [sortOption, setSortOption] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  
 
   const location = useLocation();
 
@@ -137,6 +147,25 @@ const Shop = () => {
     fetchCategories();
     fetchBrands();
   }, []);
+
+  const debouncedSearch = useCallback(
+    debounce((value) => {
+      const filterParams = {
+        category: selectedCategory,
+        brand: selectedBrand,
+        search: value,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        sort: sortOption
+      };
+      const cleanParams = Object.fromEntries(
+        Object.entries(filterParams).filter(([_, v]) => v !== "")
+      );
+      fetchProducts(1, cleanParams);
+    }, 500),
+    [selectedCategory, selectedBrand, minPrice, maxPrice, sortOption]
+  );
+  
 
   // Handler for filter form submission
   const handleFilter = (e) => {
@@ -269,8 +298,11 @@ const Shop = () => {
                     type="text"
                     placeholder="Search..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && fetchProducts(1)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      debouncedSearch(e.target.value);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchProducts(1)}
                   />
                   <span onClick={() => fetchProducts(1)}>
                     <i className="ri-search-line"></i>
