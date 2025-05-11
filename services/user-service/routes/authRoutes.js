@@ -30,33 +30,42 @@ router.get('/google/callback',
     session: false
   }),
   (req, res) => {
-    // Create frontend URL with token and user info
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost';
-    // Encode user info to prevent issues with special characters
-    const userInfo = Buffer.from(JSON.stringify({
-      id: req.user.id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role
-    })).toString('base64');
-    
-    // Redirect to frontend auth success page with token and encoded user data
-    res.redirect(`${frontendUrl}/auth/success?token=${req.user.token}&user=${userInfo}`);
+    try {
+      console.log('Google auth callback successful');
+      console.log('User data:', {
+        id: req.user.id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role,
+        tokenPresent: !!req.user.token
+      });
+      
+      // Create frontend URL with token and user info
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost';
+      
+      // Encode user info as base64 - Create a cleaned version of user data
+      const userData = {
+        id: req.user.id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role
+      };
+      
+      // Convert to JSON string and encode as base64
+      const userInfo = Buffer.from(JSON.stringify(userData)).toString('base64');
+      
+      // Log the redirected URL (with token masked)
+      const redirectUrl = `${frontendUrl}/auth/success?token=${req.user.token.substring(0, 5)}...&user=${userInfo.substring(0, 10)}...`;
+      console.log('Redirecting to:', redirectUrl);
+      
+      // Redirect to frontend auth success page with token and encoded user data
+      res.redirect(`${frontendUrl}/auth/success?token=${req.user.token}&user=${userInfo}`);
+    } catch (error) {
+      console.error('Error in Google callback:', error);
+      res.redirect('/login?error=google_auth_failed_server_error');
+    }
   }
 );
 
-// Test route for debugging
-router.get('/test', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Auth routes working!',
-    googleConfig: {
-      clientIdSet: !!process.env.GOOGLE_CLIENT_ID,
-      clientSecretSet: !!process.env.GOOGLE_CLIENT_SECRET,
-      callbackUrl: '/api/auth/google/callback',
-      frontendUrl: process.env.FRONTEND_URL || 'http://localhost'
-    }
-  });
-});
 
 module.exports = router;

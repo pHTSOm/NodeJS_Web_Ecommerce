@@ -334,6 +334,7 @@ const AddressManagement = () => {
                   {formErrors.city && <div className="text-danger small mt-1">{formErrors.city}</div>}
                 </FormGroup>
               </Col>
+              
               <Col md={6}>
                 <FormGroup>
                   <Label for="state">State/Province*</Label>
