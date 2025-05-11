@@ -36,6 +36,7 @@ const Checkout = () => {
     email: "",
     phone: "",
     address: "",
+    state:"",
     city: "",
     postalCode: "",
     country: "Vietnam",

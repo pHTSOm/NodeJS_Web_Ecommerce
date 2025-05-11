@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Container, Row, Col, Table, Card, CardBody, Badge, Spinner } from 'reactstrap';
+import { Container, Row, Col, Table, Card, CardBody, CardHeader, Badge, Spinner } from 'reactstrap';
 import { OrderService } from '../services/api';
 import CommonSection from '../components/UI/CommonSection';
 import Helmet from '../components/Helmet/Helmet';
@@ -9,11 +9,14 @@ import '../styles/profile.css';
 const OrderDetails = () => {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
+  const [statusHistory, setStatusHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchOrderDetails();
+    fetchOrderStatusHistory();
   }, [orderId]);
 
   const fetchOrderDetails = async () => {
@@ -38,8 +41,35 @@ const OrderDetails = () => {
     }
   };
 
+  const fetchOrderStatusHistory = async () => {
+    setHistoryLoading(true);
+    
+    try {
+      console.log('Fetching order status history for order ID:', orderId);
+      const response = await OrderService.getOrderStatusHistory(orderId);
+      console.log('Status history response:', response);
+      
+      if (response.success && response.statusHistory) {
+        setStatusHistory(response.statusHistory);
+      } else if (response.OrderStatuses && Array.isArray(response.OrderStatuses)) {
+        // Alternative format
+        setStatusHistory(response.OrderStatuses);
+      } else {
+        console.log('No status history available');
+        setStatusHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching order status history:', error);
+      setStatusHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    
     const options = {
       year: 'numeric',
       month: 'short',
@@ -52,6 +82,7 @@ const OrderDetails = () => {
 
   // Format price
   const formatPrice = (price) => {
+    if (!price) return '0.00';
     return parseFloat(price).toFixed(2);
   };
 
@@ -102,7 +133,7 @@ const OrderDetails = () => {
   return (
     <Helmet title={`Order #${orderId}`}>
       <CommonSection title={`Order Details #${orderId}`} />
-      <section className="profile-section">
+      <section className="profile-section py-5">
         <Container>
           {loading ? (
             <div className="text-center py-5">
@@ -131,15 +162,16 @@ const OrderDetails = () => {
             <Row>
               {/* Order Summary */}
               <Col lg="8" md="12" className="mb-4">
-                <Card className="h-100">
-                  <CardBody>
-                    <div className="d-flex justify-content-between align-items-center mb-4">
+                <Card className="h-100 shadow-sm">
+                  <CardHeader className="bg-white">
+                    <div className="d-flex justify-content-between align-items-center">
                       <h4 className="mb-0">Order Summary</h4>
                       <Badge color={getStatusBadgeColor(order.status)} className="px-3 py-2">
                         {order.status.toUpperCase()}
                       </Badge>
                     </div>
-
+                  </CardHeader>
+                  <CardBody>
                     <Row className="mb-4">
                       <Col md="6">
                         <p className="mb-1">
@@ -183,8 +215,8 @@ const OrderDetails = () => {
                     {/* Order Items */}
                     <h5 className="mb-3">Ordered Items</h5>
                     <div className="table-responsive">
-                      <Table className="mb-0">
-                        <thead>
+                      <Table className="mb-0 border">
+                        <thead className="bg-light">
                           <tr>
                             <th>Product</th>
                             <th>Price</th>
@@ -234,15 +266,15 @@ const OrderDetails = () => {
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot>
+                        <tfoot className="bg-light">
                           <tr>
                             <td colSpan="3" className="text-end">
                               <strong>Subtotal:</strong>
                             </td>
                             <td className="text-end">
                               ${formatPrice(
-                                parseFloat(order.totalAmount) - parseFloat(order.shippingFee) + 
-                                parseFloat(order.discountAmount) + parseFloat(order.loyaltyPointsUsed)
+                                parseFloat(order.totalAmount) - parseFloat(order.shippingFee || 0) + 
+                                parseFloat(order.discountAmount || 0) + parseFloat(order.loyaltyPointsUsed || 0)
                               )}
                             </td>
                           </tr>
@@ -250,9 +282,9 @@ const OrderDetails = () => {
                             <td colSpan="3" className="text-end">
                               <strong>Shipping Fee:</strong>
                             </td>
-                            <td className="text-end">${formatPrice(order.shippingFee)}</td>
+                            <td className="text-end">${formatPrice(order.shippingFee || 0)}</td>
                           </tr>
-                          {parseFloat(order.discountAmount) > 0 && (
+                          {parseFloat(order.discountAmount || 0) > 0 && (
                             <tr>
                               <td colSpan="3" className="text-end">
                                 <strong>Discount:</strong>
@@ -260,7 +292,7 @@ const OrderDetails = () => {
                               <td className="text-end">-${formatPrice(order.discountAmount)}</td>
                             </tr>
                           )}
-                          {parseFloat(order.loyaltyPointsUsed) > 0 && (
+                          {parseFloat(order.loyaltyPointsUsed || 0) > 0 && (
                             <tr>
                               <td colSpan="3" className="text-end">
                                 <strong>Loyalty Points:</strong>
@@ -272,7 +304,7 @@ const OrderDetails = () => {
                             <td colSpan="3" className="text-end">
                               <strong>Total:</strong>
                             </td>
-                            <td className="text-end fw-bold">${formatPrice(order.totalAmount)}</td>
+                            <td className="text-end fw-bold h5 mb-0">${formatPrice(order.totalAmount)}</td>
                           </tr>
                         </tfoot>
                       </Table>
@@ -284,62 +316,85 @@ const OrderDetails = () => {
               {/* Shipping Information & Order Status */}
               <Col lg="4" md="12">
                 {/* Shipping Information */}
-                <Card className="mb-4">
+                <Card className="mb-4 shadow-sm">
+                  <CardHeader className="bg-white">
+                    <h5 className="mb-0">Shipping Information</h5>
+                  </CardHeader>
                   <CardBody>
-                    <h5 className="mb-3">Shipping Information</h5>
                     {order.shippingAddress && (
                       <div>
-                      <p className="mb-1"><strong>Name:</strong> {order.shippingAddress.name}</p>
-                      <p className="mb-1">
-                    <strong>Address:</strong>{" "}
-                    {order.shippingAddress.addressLine1}
-                  </p>
-                  {order.shippingAddress.addressLine2 && (
-                    <p className="mb-1">{order.shippingAddress.addressLine2}</p>
-                  )}
-                  <p className="mb-1">
-                    {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
-                    {order.shippingAddress.postalCode}
-                  </p>
-                      <p className="mb-1"><strong>Country:</strong> {order.shippingAddress.country}</p>
-                      <p className="mb-0"><strong>Phone:</strong> {order.shippingAddress.phone}</p>
-                    </div>
+                        <p className="mb-1"><strong>Name:</strong> {order.shippingAddress.name}</p>
+                        <p className="mb-1">
+                          <strong>Address:</strong>{" "}
+                          {order.shippingAddress.addressLine1}
+                        </p>
+                        {order.shippingAddress.addressLine2 && (
+                          <p className="mb-1">{order.shippingAddress.addressLine2}</p>
+                        )}
+                        <p className="mb-1">
+                          {order.shippingAddress.city}, {order.shippingAddress.state},
+                          {order.shippingAddress.postalCode}
+                        </p>
+                        <p className="mb-1"><strong>Country:</strong> {order.shippingAddress.country}</p>
+                        <p className="mb-0"><strong>Phone:</strong> {order.shippingAddress.phone}</p>
+                      </div>
                     )}
                   </CardBody>
                 </Card>
 
                 {/* Order Status Timeline */}
-                <Card>
+                <Card className="shadow-sm">
+                  <CardHeader className="bg-white">
+                    <h5 className="mb-0">Order Status Timeline</h5>
+                  </CardHeader>
                   <CardBody>
-                    <h5 className="mb-3">Order Status Timeline</h5>
-                    {order.OrderStatuses && order.OrderStatuses.length > 0 ? (
+                    {historyLoading ? (
+                      <div className="text-center py-3">
+                        <Spinner size="sm" color="primary" />
+                        <p className="mb-0 mt-2 small">Loading status history...</p>
+                      </div>
+                    ) : statusHistory && statusHistory.length > 0 ? (
                       <div className="status-timeline">
-                        {order.OrderStatuses.map((status, index) => (
-                          <div key={status.id} className="position-relative mb-4">
+                        {statusHistory.map((status, index) => (
+                          <div key={status.id || index} className="status-item position-relative mb-4">
                             <div className="d-flex">
-                              <div className="me-3">
-                                <div className="status-dot"></div>
-                                {index < order.OrderStatuses.length - 1 && (
-                                  <div className="status-line"></div>
+                              <div className="status-indicator me-3">
+                                <div 
+                                  className={`status-dot bg-${getStatusBadgeColor(status.status)}`}
+                                  style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '50%',
+                                    marginTop: '4px'
+                                  }}
+                                ></div>
+                                {index < statusHistory.length - 1 && (
+                                  <div 
+                                    className="status-line"
+                                    style={{
+                                      width: '2px',
+                                      height: '40px',
+                                      background: '#e9ecef',
+                                      marginLeft: '7px',
+                                      marginTop: '4px'
+                                    }}
+                                  ></div>
                                 )}
                               </div>
                               <div>
-                                <h6 className="mb-1">
-                                  <Badge color={getStatusBadgeColor(status.status)}>
-                                    {status.status.toUpperCase()}
-                                  </Badge>
-                                </h6>
                                 <p className="mb-1 text-muted small">
                                   {formatDate(status.createdAt)}
                                 </p>
-                                {status.note && <p className="mb-0">{status.note}</p>}
+                                {status.note && <p className="mb-0 small">{status.note}</p>}
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p>No status updates available</p>
+                      <div className="text-center py-3">
+                        <p className="text-muted mb-0">No status updates available</p>
+                      </div>
                     )}
                   </CardBody>
                 </Card>
