@@ -668,6 +668,46 @@ exports.getOrderStats = async (req, res) => {
   }
 };
 
+// Get order details (admin version)
+exports.getOrderDetailsAdmin = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Find order
+    const order = await Order.findByPk(orderId, {
+      include: [
+        {
+          model: OrderItem,
+          as: 'OrderItems'
+        },
+        {
+          model: OrderStatus,
+          as: 'StatusHistory',
+          order: [['createdAt', 'DESC']]
+        }
+      ]
+    });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 // Helper functions for statistics
 async function getYearlyStats() {
   try {
