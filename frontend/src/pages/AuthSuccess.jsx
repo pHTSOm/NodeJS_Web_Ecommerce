@@ -19,14 +19,38 @@ const AuthSuccess = () => {
         const token = params.get('token');
         const userParam = params.get('user');
         
-        console.log("Auth Success params:", { token: token?.substring(0, 10) + '...', userParam: !!userParam });
+        console.log("Auth Success params:", { 
+          token: token ? (token.substring(0, 10) + '...') : 'missing', 
+          userParamExists: !!userParam 
+        });
         
         if (!token || !userParam) {
           throw new Error("Missing authentication data");
         }
         
-        // Parse user data
-        const user = JSON.parse(decodeURIComponent(userParam));
+        // Decode base64 string and then parse as JSON
+        // First URL decode in case there were any URL encoding applied during redirect
+        const decodedUserParam = decodeURIComponent(userParam);
+        
+        // Then decode from base64
+        let user;
+        try {
+          // For browsers
+          const userJson = atob(decodedUserParam);
+          user = JSON.parse(userJson);
+        } catch (decodeError) {
+          console.error('Error decoding user data:', decodeError);
+          // Alternative decoding method
+          const userBuffer = Buffer.from(decodedUserParam, 'base64');
+          user = JSON.parse(userBuffer.toString());
+        }
+        
+        console.log("Successfully decoded user:", { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email, 
+          role: user.role 
+        });
         
         // Save token and user data to localStorage
         localStorage.setItem('token', token);
@@ -50,8 +74,16 @@ const AuthSuccess = () => {
         }
       } catch (error) {
         console.error('Error processing authentication:', error);
-        toast.error("Authentication failed");
-        navigate("/login");
+        toast.error("Authentication failed: " + (error.message || "Unknown error"));
+        
+        // Instead of immediately redirecting, show error details for debugging
+        console.error('Full error details:', error);
+        console.error('Location search:', location.search);
+        
+        // Add a slight delay before redirecting to login for debugging
+        setTimeout(() => {
+          navigate("/login");
+        }, 3000);
       }
     };
     

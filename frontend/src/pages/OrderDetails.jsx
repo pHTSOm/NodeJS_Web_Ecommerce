@@ -289,13 +289,21 @@ const OrderDetails = () => {
                     <h5 className="mb-3">Shipping Information</h5>
                     {order.shippingAddress && (
                       <div>
-                        <p className="mb-1"><strong>Name:</strong> {order.shippingAddress.name}</p>
-                        <p className="mb-1"><strong>Address:</strong> {order.shippingAddress.address}</p>
-                        <p className="mb-1"><strong>City:</strong> {order.shippingAddress.city}</p>
-                        <p className="mb-1"><strong>Country:</strong> {order.shippingAddress.country}</p>
-                        <p className="mb-1"><strong>Postal Code:</strong> {order.shippingAddress.postalCode}</p>
-                        <p className="mb-0"><strong>Phone:</strong> {order.shippingAddress.phone}</p>
-                      </div>
+                      <p className="mb-1"><strong>Name:</strong> {order.shippingAddress.name}</p>
+                      <p className="mb-1">
+                    <strong>Address:</strong>{" "}
+                    {order.shippingAddress.addressLine1}
+                  </p>
+                  {order.shippingAddress.addressLine2 && (
+                    <p className="mb-1">{order.shippingAddress.addressLine2}</p>
+                  )}
+                  <p className="mb-1">
+                    {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
+                    {order.shippingAddress.postalCode}
+                  </p>
+                      <p className="mb-1"><strong>Country:</strong> {order.shippingAddress.country}</p>
+                      <p className="mb-0"><strong>Phone:</strong> {order.shippingAddress.phone}</p>
+                    </div>
                     )}
                   </CardBody>
                 </Card>

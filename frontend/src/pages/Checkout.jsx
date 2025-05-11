@@ -259,6 +259,7 @@ const Checkout = () => {
           email: formData.email,
           phone: formData.phone,
           address: formData.address,
+          state: formData.state,
           city: formData.city,
           postalCode: formData.postalCode,
           country: formData.country
@@ -370,7 +371,9 @@ const Checkout = () => {
                                       </div>
                                       <p className="small mb-1">{address.addressLine1}</p>
                                       {address.addressLine2 && <p className="small mb-1">{address.addressLine2}</p>}
-                                      <p className="small mb-1">{address.city}, {address.state} {address.postalCode}</p>
+                                      <p className="small mb-1">{address.state}</p>
+                                      <p className="small mb-1">{address.city}</p> 
+                                      <p className="small mb-1">{address.postalCode}</p>
                                       <p className="small mb-1">{address.country}</p>
                                       <p className="small mb-0">{address.phone}</p>
                                     </CardBody>
@@ -491,7 +494,23 @@ const Checkout = () => {
                             <div className="text-danger small mt-1">{formErrors.address}</div>
                           )}
                         </FormGroup>
-                        
+
+                        <Col md={6}>
+                          <FormGroup>
+                            <Label for="state">State/Province*</Label>
+                            <Input
+                              type="text"
+                              name="state"
+                              id="state"
+                              value={formData.state}
+                              onChange={handleChange}
+                              invalid={!!formErrors.state}
+                              required
+                            />
+                            {formErrors.state && <div className="text-danger small mt-1">{formErrors.state}</div>}
+                          </FormGroup>
+                        </Col>
+
                         <Row>
                           <Col md="6" className="form__group mb-3">
                             <Label for="city">City*</Label>
