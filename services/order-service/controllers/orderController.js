@@ -753,6 +753,42 @@ async function getYearlyStats() {
   }
 }
 
+// Get order status history (admin version)
+exports.getOrderStatusHistoryAdmin = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Find order
+    const order = await Order.findByPk(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Get status history
+    const statusHistory = await OrderStatus.findAll({
+      where: { orderId },
+      order: [['createdAt', 'DESC']]
+    });
+    
+    res.json({
+      success: true,
+      orderId,
+      currentStatus: order.status,
+      statusHistory
+    });
+  } catch (error) {
+    console.error('Error fetching order status history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 async function getQuarterlyStats() {
   // Implementation would query database for quarterly stats
   return {
