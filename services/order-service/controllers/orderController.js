@@ -2,6 +2,7 @@ const { sequelize } = require('../config/db');
 const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
 const OrderStatus = require('../models/OrderStatus');
+const { Op } = require('sequelize'); 
 const { calculateLoyaltyPoints } = require('../utils/loyaltyPoints');
 const { sendOrderConfirmationEmail } = require('../utils/emailService');
 const axios = require('axios');
@@ -504,18 +505,88 @@ exports.trackGuestOrder = async (req, res) => {
 // Get all orders (admin only)
 exports.getAllOrders = async (req, res) => {
   try {
+    // Log query parameters for debugging
+    console.log('Order filter params:', req.query);
+    
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
     
-    // Get time filter params
+    // Filter parameters
     const timeFilter = req.query.timeFilter;
-    // Apply filtering logic based on timeFilter
+    const status = req.query.status;
     
-    // Find all orders
+    // Build where clause
+    const whereClause = {};
+    
+    // Add status filter if provided
+    if (status) {
+      whereClause.status = status;
+    }
+    
+    // Apply time filter
+    if (timeFilter) {
+      const now = new Date();
+      let startDate, endDate;
+      
+      switch (timeFilter) {
+        case 'today':
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          endDate = new Date(now.setHours(23, 59, 59, 999));
+          break;
+          
+        case 'yesterday':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 1);
+          startDate.setHours(0, 0, 0, 0);
+          
+          endDate = new Date(startDate);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'thisWeek':
+          // Start of this week (Sunday)
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - now.getDay());
+          startDate.setHours(0, 0, 0, 0);
+          
+          // End of this week (Saturday)
+          endDate = new Date(now);
+          endDate.setDate(startDate.getDate() + 6);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'thisMonth':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+          break;
+          
+        case 'custom':
+          // Use custom date range if provided
+          if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            startDate.setHours(0, 0, 0, 0);
+            
+            endDate = new Date(req.query.endDate);
+            endDate.setHours(23, 59, 59, 999);
+          }
+          break;
+      }
+      
+      // Add date range to where clause
+      if (startDate && endDate) {
+        whereClause.createdAt = {
+          [Op.between]: [startDate, endDate]
+        };
+      }
+    }
+    
+    console.log('Final where clause:', JSON.stringify(whereClause, null, 2));
+    
+    // Find all orders with filters
     const { count, rows: orders } = await Order.findAndCountAll({
-      // Include necessary relations (OrderItems, etc.)
+      where: whereClause,
       include: [
         {
           model: OrderItem,
@@ -526,6 +597,9 @@ exports.getAllOrders = async (req, res) => {
       limit,
       offset
     });
+    
+    // Log the retrieved orders for debugging
+    console.log(`Found ${orders.length} orders with status filter: ${status || 'all'}`);
     
     // Return properly formatted response
     res.json({
@@ -541,7 +615,8 @@ exports.getAllOrders = async (req, res) => {
     console.error('Error fetching all orders:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: error.message
     });
   }
 };
