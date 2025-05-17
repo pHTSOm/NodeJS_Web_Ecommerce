@@ -13,5 +13,6 @@ router.get('/:id', productController.getProductById);
 router.post('/', protect, adminOnly, productController.createProduct);
 router.put('/:id', protect, adminOnly, productController.updateProduct);
 router.delete('/:id', protect, adminOnly, productController.deleteProduct);
+router.post('/:id/increment-sales', productController.incrementSalesCount);
 
 module.exports = router;
