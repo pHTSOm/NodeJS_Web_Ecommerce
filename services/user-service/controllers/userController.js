@@ -116,7 +116,10 @@ exports.logoutAllDevices = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ["password"] },
+      attributes: { 
+        include: ["loyaltyPoints"],
+        exclude: ["password"] 
+      },
     });
 
     res.json({
