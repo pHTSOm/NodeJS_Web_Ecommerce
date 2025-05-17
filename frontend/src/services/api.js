@@ -92,7 +92,14 @@ export const AuthService = {
   },
 
   getCurrentUser: () => {
-    return JSON.parse(localStorage.getItem("user"));
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return null;
+    try {
+      return JSON.parse(userStr);
+    } catch (error) {
+      console.error("Error parsing user from localStorage:", error);
+      return null;
+    }
   },
 
   isLoggedIn: () => {
@@ -110,6 +117,17 @@ export const AuthService = {
       return false;
     }
   },
+
+  // Google OAuth methods
+  initiateGoogleAuth: () => {
+    const apiUrl = process.env.REACT_APP_API_URL || "/api";
+    window.location.href = `${apiUrl}/auth/google`;
+  },
+
+  handleGoogleCallback: (searchParams) => {
+    // This is handled by the AuthSuccess component
+  },
+
   // Add new user profile methods
   getUserProfile: async () => {
     try {

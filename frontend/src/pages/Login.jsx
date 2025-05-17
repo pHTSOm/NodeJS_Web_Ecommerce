@@ -1,6 +1,7 @@
+// frontend/src/pages/Login.jsx - Complete implementation
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col } from "reactstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthService } from "../services/api";
 import { useDispatch } from "react-redux";
@@ -13,10 +14,20 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [redirectPath, setRedirectPath] = useState(null);
   
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+  
+  // Check if there's a redirect path in the URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const error = searchParams.get('error');
+    
+    if (error) {
+      toast.error(error.replace(/_/g, ' '));
+    }
+  }, [location]);
 
   useEffect(() => {
     // If user is already logged in, redirect to home
@@ -24,26 +35,18 @@ const Login = () => {
       navigate("/");
     }
   }, [navigate]);
-
   
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      // Changed from direct API call to AuthService
       const response = await AuthService.login({ email, password });
       setLoading(false);
       toast.success("Login successful");
       
+      // Dispatch cart sync action and handle redirection
       handleLoginSuccess();
-      // setTimeout(() => {
-      //   if (AuthService.isAdmin()) {
-      //     navigate("/admin/products");
-      //   } else {
-      //     navigate("/");
-      //   }
-      // }, 100);
     } catch (error) {
       setLoading(false);
       toast.error(error.response?.data?.message || "Login failed");
@@ -51,14 +54,17 @@ const Login = () => {
   };
 
   const handleLoginSuccess = () => {
-    // After successful login
+    // After successful login, sync cart
     dispatch(syncCartAfterLogin())
       .unwrap()
       .then(() => {
-        // Redirect user to desired page
+        // Redirect user based on role
         if (AuthService.isAdmin()) {
           navigate("/admin/products");
         } else {
+          // Get redirect path from query params if exists
+          const searchParams = new URLSearchParams(location.search);
+          const redirectPath = searchParams.get('redirect');
           navigate(redirectPath || '/');
         }      
       })
@@ -68,6 +74,8 @@ const Login = () => {
         if (AuthService.isAdmin()) {
           navigate("/admin/products");
         } else {
+          const searchParams = new URLSearchParams(location.search);
+          const redirectPath = searchParams.get('redirect');
           navigate(redirectPath || '/');
         }
       });
@@ -81,10 +89,10 @@ const Login = () => {
             <Col lg="6" className="m-auto">
               <div className="auth-form">
                 <h3 className="text-center">Login</h3>
-              <GoogleAuthButton />
-              <div className="text-center my-3">
-                <span className="text-muted">OR</span>
-              </div>
+                <GoogleAuthButton />
+                <div className="text-center my-3">
+                  <span className="text-muted">OR</span>
+                </div>
                 <form onSubmit={handleLogin}>
                   <div className="form-group">
                     <label>Email</label>
@@ -122,7 +130,7 @@ const Login = () => {
                     {loading ? "Logging in..." : "Login"}
                   </button>
                   
-                  <p>
+                  <p className="mt-3 text-center">
                     Don't have an account? <Link to="/register">Create an account</Link>
                   </p>
                 </form>

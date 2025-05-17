@@ -9,6 +9,9 @@ import ProductDetails from '../pages/ProductDetails';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Profile from '../pages/Profile';
+import AuthSuccess from '../pages/AuthSuccess';
+import ForgotPassword from '../pages/ForgotPassword';
+import ResetPassword from '../pages/ResetPassword';
 
 import OrderConfirmation from '../pages/OrderConfirmation';
 import OrderHistory from '../pages/OrderHistory';
@@ -31,6 +34,9 @@ const Routers = () => {
     <Route path='cart' element={<Cart/>}/>
     <Route path="login" element={<Login />} />
     <Route path="register" element={<Register />} />
+    <Route path="auth/success" element={<AuthSuccess />} />
+    <Route path="forgot-password" element={<ForgotPassword />} />
+    <Route path="reset-password" element={<ResetPassword />} />
     
     <Route path="checkout" element={
         <ProtectedRoute>
@@ -56,7 +62,7 @@ const Routers = () => {
       </ProtectedRoute>
     } />
 
-    {/* Admin routes - nested under an admin layout */}
+    {/* Admin routes */}
     <Route path="admin" element={
       <ProtectedRoute adminOnly={true}>
         <AdminLayout />
@@ -71,13 +77,6 @@ const Routers = () => {
       <Route path="orders/:orderId" element={<AdminOrderDetails />} />
       <Route path="users" element={<AdminUsers />} />
     </Route>
-      
-    {/* Keep backwards compatibility for now */}
-    <Route path="addproduct" element={
-      <ProtectedRoute adminOnly={true}>
-        <Navigate to="/admin/products/add" replace />
-      </ProtectedRoute>
-    } />
   </Routes>
 }
 
