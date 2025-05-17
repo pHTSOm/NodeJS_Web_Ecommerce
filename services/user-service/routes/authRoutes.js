@@ -20,7 +20,8 @@ router.get('/google',
   },
   passport.authenticate('google', { 
     scope: ['profile', 'email'],
-    session: false
+    session: false,
+    prompt: 'select_account' // Force account selection prompt
   })
 );
 
@@ -43,7 +44,7 @@ router.get('/google/callback',
       // Create frontend URL with token and user info
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost';
       
-      // Encode user info as base64 - Create a cleaned version of user data
+      // Create a cleaned version of user data
       const userData = {
         id: req.user.id,
         name: req.user.name,
@@ -59,13 +60,12 @@ router.get('/google/callback',
       console.log('Redirecting to:', redirectUrl);
       
       // Redirect to frontend auth success page with token and encoded user data
-      res.redirect(`${frontendUrl}/auth/success?token=${req.user.token}&user=${userInfo}`);
+      res.redirect(`${frontendUrl}/auth/success?token=${encodeURIComponent(req.user.token)}&user=${encodeURIComponent(userInfo)}`);
     } catch (error) {
       console.error('Error in Google callback:', error);
       res.redirect('/login?error=google_auth_failed_server_error');
     }
   }
 );
-
 
 module.exports = router;
