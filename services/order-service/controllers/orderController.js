@@ -391,8 +391,16 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
     
-    // Find order
-    const order = await Order.findByPk(orderId, { transaction });
+    // Find order with its items
+    const order = await Order.findByPk(orderId, { 
+      transaction,
+      include: [
+        {
+          model: OrderItem,
+          as: 'OrderItems'
+        }
+      ]
+    });
     
     if (!order) {
       await transaction.rollback();
@@ -411,6 +419,9 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
     
+    // Previous status (before update)
+    const previousStatus = order.status;
+    
     // Update order status
     await order.update({ status }, { transaction });
     
@@ -422,6 +433,70 @@ exports.updateOrderStatus = async (req, res) => {
       updatedBy: req.userId, // Admin user ID
       updatedByRole: 'admin'
     }, { transaction });
+    
+    // Commit transaction
+    await transaction.commit();
+    
+    // If the status is changed to "delivered", update product salesCount
+    // We do this AFTER committing the transaction to not block the status update
+    if (status === 'delivered' && previousStatus !== 'delivered') {
+      // Don't await this - fire and forget to avoid blocking the response
+      (async () => {
+        try {
+          console.log(`Order #${orderId} delivered - updating product sales counts`);
+          
+          // Get the product service URL from environment variable or use default
+          const productServiceUrl = process.env.PRODUCT_SERVICE_URL || 'http://product-service:3002';
+          
+          // For each order item, update the product salesCount
+          if (order.OrderItems && order.OrderItems.length > 0) {
+            const updatePromises = order.OrderItems.map(async (item) => {
+              // Retry up to 3 times with exponential backoff
+              let retries = 0;
+              const maxRetries = 3;
+              
+              while (retries < maxRetries) {
+                try {
+                  console.log(`Updating salesCount for product #${item.productId} by ${item.quantity}`);
+                  
+                  const productResponse = await axios.post(
+                    `${productServiceUrl}/api/products/${item.productId}/increment-sales`,
+                    { quantity: item.quantity },
+                    { timeout: 5000 } // Add a timeout to prevent hanging
+                  );
+                  
+                  console.log(`Updated salesCount for product #${item.productId}: Success`);
+                  // Success, so break the retry loop
+                  break;
+                } catch (error) {
+                  retries++;
+                  console.error(`Attempt ${retries} failed to update salesCount for product #${item.productId}:`, error.message);
+                  
+                  if (retries >= maxRetries) {
+                    console.error(`Failed to update salesCount for product #${item.productId} after ${maxRetries} attempts`);
+                  } else {
+                    // Exponential backoff: wait longer before each retry
+                    const delay = Math.pow(2, retries) * 1000;
+                    console.log(`Retrying salesCount update for product #${item.productId} in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                  }
+                }
+              }
+            });
+            
+            try {
+              // Wait for all update attempts to complete
+              await Promise.all(updatePromises);
+              console.log(`Completed sales count updates for order #${orderId}`);
+            } catch (batchError) {
+              console.error(`Error processing batch sales count updates for order #${orderId}:`, batchError);
+            }
+          }
+        } catch (salesCountError) {
+          console.error('Error in salesCount update process:', salesCountError);
+        }
+      })();
+    }
     
     // Send notification to user if configured (email, SMS, etc.)
     try {
@@ -435,9 +510,6 @@ exports.updateOrderStatus = async (req, res) => {
       // Continue with status update even if notification fails
     }
     
-    // Commit transaction
-    await transaction.commit();
-    
     res.json({
       success: true,
       message: 'Order status updated successfully',
@@ -447,7 +519,7 @@ exports.updateOrderStatus = async (req, res) => {
       }
     });
   } catch (error) {
-    if (transaction) await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     console.error('Error updating order status:', error);
     res.status(500).json({
       success: false,

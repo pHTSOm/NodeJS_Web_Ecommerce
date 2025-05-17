@@ -620,3 +620,51 @@ exports.getBrands = async (req, res) => {
     });
   }
 };
+
+exports.incrementSalesCount = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { quantity = 1 } = req.body;
+    
+    console.log(`Received request to increment salesCount for product #${productId} by ${quantity}`);
+    
+    // Validate quantity is positive
+    const incrementAmount = Math.max(1, parseInt(quantity) || 1);
+    
+    // Find the product
+    const product = await Product.findByPk(productId);
+    
+    if (!product) {
+      console.log(`Product #${productId} not found`);
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get current salesCount
+    const previousSalesCount = product.salesCount || 0;
+    
+    // Update salesCount
+    await product.increment('salesCount', { by: incrementAmount });
+    
+    // Get updated product
+    await product.reload();
+    
+    console.log(`Product #${productId} salesCount updated: ${previousSalesCount} → ${product.salesCount}`);
+    
+    res.json({
+      success: true,
+      message: `Product salesCount incremented by ${incrementAmount}`,
+      previousSalesCount: previousSalesCount,
+      newSalesCount: product.salesCount
+    });
+  } catch (error) {
+    console.error('Error incrementing salesCount:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
