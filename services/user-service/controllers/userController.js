@@ -601,3 +601,22 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
+
+// Update loyalty points
+exports.updateLoyaltyPoints = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { points } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    user.loyaltyPoints = parseFloat(user.loyaltyPoints || 0) + points;
+    await user.save();
+
+    res.json({ success: true, loyaltyPoints: user.loyaltyPoints });
+  } catch (error) {
+    console.error("Loyalty update error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

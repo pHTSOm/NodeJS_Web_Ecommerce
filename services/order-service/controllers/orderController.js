@@ -5,7 +5,6 @@ const OrderStatus = require("../models/OrderStatus");
 const { Op } = require("sequelize");
 const { calculateLoyaltyPoints } = require("../utils/loyaltyPoints");
 const { sendOrderConfirmationEmail } = require("../utils/emailService");
-const User = require("../../user-service/models/User");
 const axios = require("axios");
 
 exports.createOrder = async (req, res) => {
@@ -63,34 +62,31 @@ exports.createOrder = async (req, res) => {
     let pointsDiscountRate = 100;
 
     if (userId && useLoyaltyPoints) {
-      const user = await User.findByPk(userId, { transaction });
-      
-      if (!user) {
+      const userServiceUrl = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+      const userRes = await axios.get(`${userServiceUrl}/api/users/${userId}`);
+      const userData = userRes.data.user;
+      const availablePoints = userData.loyaltyPoints || 0;
+    
+      const pointsDiscountRate = 100;
+      const maxUsablePoints = Math.floor(availablePoints / pointsDiscountRate) * pointsDiscountRate;
+    
+      if (maxUsablePoints < pointsDiscountRate) {
         await transaction.rollback();
         return res.status(400).json({
           success: false,
-          message: 'User not found'
+          message: 'Minimum 100 points required for redemption',
         });
       }
     
-      maxUsablePoints = Math.floor(user.loyaltyPoints / pointsDiscountRate) * pointsDiscountRate;
-      
-      if (maxUsablePoints < pointsDiscountRate || user.loyaltyPoints < pointsDiscountRate) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: 'Minimum 100 points required for redemption'
-        });
-      }
-    
-      // Automatically use maximum available points
       loyaltyPointsUsed = maxUsablePoints;
-      
-      await user.decrement('loyaltyPoints', {
-        by: loyaltyPointsUsed,
-        transaction
+      discountAmount += loyaltyPointsUsed / pointsDiscountRate;
+    
+      // Deduct points via user-service
+      await axios.put(`${userServiceUrl}/api/users/${userId}/loyalty`, {
+        points: -loyaltyPointsUsed,
       });
     }
+    
     
 
     // Calculate tax (10% of subtotal)
@@ -179,16 +175,13 @@ exports.createOrder = async (req, res) => {
       // If user is logged in, update their loyalty points
       if (userId) {
         try {
-          if (loyaltyPointsEarned > 0) {
-            await User.increment('loyaltyPoints', {
-              by: loyaltyPointsEarned,
-              where: { id: userId },
-              transaction
-            });
-          }
+          const userServiceUrl = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+          const updatePayload = { points: loyaltyPointsEarned };  // points earned from this order
+          // Make a request to user-service to add the new loyalty points to the user’s account
+          await axios.put(`${userServiceUrl}/api/users/${userId}/loyalty`, updatePayload);
         } catch (userError) {
-          console.error("Error updating user loyalty points:", userError);
-          // Continue with order creation even if points update fails
+          console.error('Error updating user loyalty points:', userError);
+          // Continue even if the loyalty point update fails, to not block order completion
         }
       }
 

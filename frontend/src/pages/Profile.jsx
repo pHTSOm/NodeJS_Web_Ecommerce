@@ -428,25 +428,15 @@ const Profile = () => {
                           <p className="mt-3">Loading loyalty points...</p>
                         </div>
                       ) : (
-                        <div className="loyalty-points-container">
-                          <div className="d-flex align-items-center mb-4">
-                            <i className="ri-coin-line fs-1 text-warning me-3"></i>
-                            <div>
-                              <h2 className="mb-0">
-                                {profileData.loyaltyPoints}
-                              </h2>
-                              <p className="text-muted mb-0">
-                                Available Points
-                              </p>
-                            </div>
-                          </div>
-                          <div className="loyalty-info">
-                            <p className="text-muted">
-                              <i className="ri-information-line me-2"></i>
-                              You earn 1 point for every $1 spent. 100 points =
-                              $1 discount.
-                            </p>
-                          </div>
+                        <div>
+                          <h5 className="text-success">
+                            You currently have{" "}
+                            <strong>{profileData.loyaltyPoints}</strong> points
+                          </h5>
+                          <p className="text-muted">
+                            Every 100 points = $1 discount. You can redeem
+                            points at checkout if you have at least 100.
+                          </p>
                         </div>
                       )}
                     </TabPane>
