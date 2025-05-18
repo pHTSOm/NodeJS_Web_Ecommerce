@@ -8,6 +8,7 @@ const { sendOrderConfirmationEmail } = require("../utils/emailService");
 const axios = require("axios");
 
 exports.createOrder = async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
   let transaction;
 
   try {
@@ -58,43 +59,56 @@ exports.createOrder = async (req, res) => {
 
     // Loyalty points logic
     let loyaltyPointsUsed = 0;
-    let maxUsablePoints = 0;
     let pointsDiscountRate = 100;
 
     if (userId && useLoyaltyPoints) {
       const userServiceUrl = process.env.USER_SERVICE_URL || 'http://user-service:3001';
-      const userRes = await axios.get(`${userServiceUrl}/api/users/${userId}`);
-      const userData = userRes.data.user;
-      const availablePoints = userData.loyaltyPoints || 0;
+      
+      try {
+        const userRes = await axios.get(`${userServiceUrl}/api/users/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        const userData = userRes.data.user;
+        const availablePoints = userData.loyaltyPoints || 0;
+            
+        const maxUsablePoints = Math.floor(availablePoints / pointsDiscountRate) * pointsDiscountRate;
     
-      const pointsDiscountRate = 100;
-      const maxUsablePoints = Math.floor(availablePoints / pointsDiscountRate) * pointsDiscountRate;
+        if (maxUsablePoints < pointsDiscountRate) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Minimum 100 points required for redemption',
+          });
+        }
     
-      if (maxUsablePoints < pointsDiscountRate) {
+        loyaltyPointsUsed = maxUsablePoints;
+        discountAmount += loyaltyPointsUsed / pointsDiscountRate;
+    
+        // Deduct points via user-service
+        await axios.put(`${userServiceUrl}/api/users/${userId}/loyalty`, {
+          points: -loyaltyPointsUsed,
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
         await transaction.rollback();
-        return res.status(400).json({
+        return res.status(500).json({
           success: false,
-          message: 'Minimum 100 points required for redemption',
+          message: 'Failed to fetch or deduct loyalty points',
+          error: err.message,
         });
       }
-    
-      loyaltyPointsUsed = maxUsablePoints;
-      discountAmount += loyaltyPointsUsed / pointsDiscountRate;
-    
-      // Deduct points via user-service
-      await axios.put(`${userServiceUrl}/api/users/${userId}/loyalty`, {
-        points: -loyaltyPointsUsed,
-      });
     }
     
-    
-
-    // Calculate tax (10% of subtotal)
-    const tax = subtotal * 0.1;
 
     // Final total
     const totalAmount =
-    subtotal + shippingFee + tax - discountAmount - (loyaltyPointsUsed / pointsDiscountRate);
+      subtotal +
+      shippingFee +      
+      discountAmount -
+      loyaltyPointsUsed / pointsDiscountRate;
 
     // Calculate loyalty points earned (10% of total)
     const loyaltyPointsEarned = userId ? Math.floor(subtotal) : 0;
@@ -119,8 +133,7 @@ exports.createOrder = async (req, res) => {
           },
           paymentMethod: payment.method,
           paymentStatus: "pending",
-          shippingFee,
-          tax,
+          shippingFee,          
           discountCode,
           discountAmount,
           loyaltyPointsUsed,
@@ -175,12 +188,18 @@ exports.createOrder = async (req, res) => {
       // If user is logged in, update their loyalty points
       if (userId) {
         try {
-          const userServiceUrl = process.env.USER_SERVICE_URL || 'http://user-service:3001';
-          const updatePayload = { points: loyaltyPointsEarned };  // points earned from this order
+          const userServiceUrl =
+            process.env.USER_SERVICE_URL || "http://user-service:3001";
+          const updatePayload = { points: loyaltyPointsEarned }; // points earned from this order
           // Make a request to user-service to add the new loyalty points to the user’s account
-          await axios.put(`${userServiceUrl}/api/users/${userId}/loyalty`, updatePayload);
+          await axios.put(`${userServiceUrl}/api/users/${userId}/loyalty`, {
+            points: loyaltyPointsEarned
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
         } catch (userError) {
-          console.error('Error updating user loyalty points:', userError);
+          console.error("Error updating user loyalty points:", userError);
           // Continue even if the loyalty point update fails, to not block order completion
         }
       }
