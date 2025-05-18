@@ -58,9 +58,18 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      console.error("401 Unauthorized - clearing token");
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      // Only redirect for non-checkout routes
+      const isCheckoutRoute = error.config.url.includes('/orders') && error.config.method === 'post';
+      
+      if (!isCheckoutRoute) {
+        console.error("401 Unauthorized - clearing token");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        // Don't automatically redirect for checkout
+        if (!window.location.pathname.includes('/checkout')) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }
@@ -386,27 +395,10 @@ export const ReviewService = {
 export const OrderService = {
   createOrder: async (orderData) => {
     try {
-      console.log('Submitting order:', orderData);
-      console.log('Calling createOrder API with data:', orderData);
-      
-      const response = await API.post('/orders', orderData, {
-        withCredentials: true
-      });
-      
-      console.log('Raw API response:', response);
-      console.log('Response data:', response.data);
-      
+      const response = await API.post('/orders', orderData);
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response ? {
-          status: error.response.status,
-          data: error.response.data
-        } : 'No response',
-        request: error.request ? 'Request sent but no response' : 'Request setup failed'
-      });
       throw error;
     }
   },
