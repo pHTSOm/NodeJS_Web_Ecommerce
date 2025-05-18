@@ -1,8 +1,8 @@
-// services/user-service/config/passport.js
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
+const { sendGoogleAuthPassword } = require('../utils/emailService');
 
 module.exports = function() {
   // Configure Google Strategy
@@ -15,7 +15,6 @@ module.exports = function() {
   async function(accessToken, refreshToken, profile, done) {
     try {
       console.log('Google auth callback triggered');
-      console.log('Profile:', JSON.stringify(profile, null, 2));
       
       // Check if email is provided by Google
       if (!profile.emails || !profile.emails.length) {
@@ -29,17 +28,29 @@ module.exports = function() {
       
       // Check if user exists
       let user = await User.findOne({ where: { email } });
+      let isNewUser = false;
+      let plainPassword = ''; // Will store the plain password for email sending
       
       if (!user) {
         console.log(`Creating new user for: ${email}`);
-        // Create new user if doesn't exist
+        isNewUser = true;
+        
+        // Generate a secure random password
+        plainPassword = Math.random().toString(36).slice(2, 10) + 
+                       Math.random().toString(36).slice(2, 10) + 
+                       Math.random().toString(36).slice(2, 6);
+        
+        // Create new user - the User model hooks will hash the password
         user = await User.create({
           email,
           name,
-          // Generate a secure random password since we won't use it
-          password: Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10),
+          password: plainPassword, // Will be hashed by the model hooks
           role: 'user'
         });
+        
+        // Send the plain password via email
+        console.log(`Sending password email to: ${email}`);
+        await sendGoogleAuthPassword(email, plainPassword);
       } else {
         console.log(`Found existing user: ${user.id}`);
       }
@@ -53,7 +64,8 @@ module.exports = function() {
         name: user.name,
         email: user.email,
         role: user.role,
-        token
+        token,
+        isNewUser // This can be used to show a different message to new users
       });
     } catch (error) {
       console.error('Error in Google auth callback:', error);
