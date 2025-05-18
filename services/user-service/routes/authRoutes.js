@@ -33,13 +33,6 @@ router.get('/google/callback',
   (req, res) => {
     try {
       console.log('Google auth callback successful');
-      console.log('User data:', {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-        role: req.user.role,
-        tokenPresent: !!req.user.token
-      });
       
       // Create frontend URL with token and user info
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost';
@@ -49,15 +42,12 @@ router.get('/google/callback',
         id: req.user.id,
         name: req.user.name,
         email: req.user.email,
-        role: req.user.role
+        role: req.user.role,
+        isNewUser: req.user.isNewUser // Pass this to the frontend
       };
       
       // Convert to JSON string and encode as base64
       const userInfo = Buffer.from(JSON.stringify(userData)).toString('base64');
-      
-      // Log the redirected URL (with token masked)
-      const redirectUrl = `${frontendUrl}/auth/success?token=${req.user.token.substring(0, 5)}...&user=${userInfo.substring(0, 10)}...`;
-      console.log('Redirecting to:', redirectUrl);
       
       // Redirect to frontend auth success page with token and encoded user data
       res.redirect(`${frontendUrl}/auth/success?token=${encodeURIComponent(req.user.token)}&user=${encodeURIComponent(userInfo)}`);
@@ -67,5 +57,15 @@ router.get('/google/callback',
     }
   }
 );
+  
+router.get('/test-email', async (req, res) => {
+  try {
+    const result = await sendGoogleAuthPassword('your-test-email@example.com', 'TestPassword123');
+    res.json({ success: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 module.exports = router;
