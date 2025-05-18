@@ -38,11 +38,7 @@ const Routers = () => {
     <Route path="forgot-password" element={<ForgotPassword />} />
     <Route path="reset-password" element={<ResetPassword />} />
     
-    <Route path="checkout" element={
-        <ProtectedRoute>
-          <Checkout />
-        </ProtectedRoute>
-      } />
+    <Route path="checkout" element={<Checkout />} />
 
     <Route path="order-confirmation/:orderId" element={<OrderConfirmation />} />
     <Route path="orders" element={

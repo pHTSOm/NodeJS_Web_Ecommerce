@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
+exports.sendOrderConfirmationEmail = async (to, order, orderItems, options = {}) => {
   try {
     // Check if email configuration exists
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
@@ -8,7 +8,7 @@ exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
       return false;
     }
     
-    // Create transporter for this request
+    // Create transporter
     const transporter = nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE || 'gmail',
       auth: {
@@ -21,7 +21,7 @@ exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
     const itemsHtml = orderItems.map(item => `
       <tr>
         <td style="padding: 8px; border-bottom: 1px solid #eee;">
-          ${item.productData.name} ${item.productData.variant ? `(${item.productData.variant.name})` : ''}
+          ${item.productData?.name || 'Product'} ${item.productData?.variant ? `(${item.productData.variant.name})` : ''}
         </td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">
           ${item.quantity}
@@ -34,6 +34,22 @@ exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
         </td>
       </tr>
     `).join('');
+
+    // Optional account creation info section
+    const accountInfoSection = options.includeAccountInfo ? `
+      <div style="margin-top: 30px; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #0a1d37;">
+        <h3 style="color: #0a1d37; margin-top: 0;">Your Account Has Been Created</h3>
+        <p>We've created an account for you to make it easier to track your orders and make future purchases.</p>
+        <p>You'll receive a separate email with your login credentials.</p>
+        <p>Benefits of your account:</p>
+        <ul>
+          <li>Track your current and past orders</li>
+          <li>Save multiple shipping addresses</li>
+          <li>Earn and use loyalty points</li>
+          <li>Faster checkout for future purchases</li>
+        </ul>
+      </div>
+    ` : '';
     
     // Email options
     const mailOptions = {
@@ -68,19 +84,19 @@ exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
             <tfoot>
               <tr>
                 <td colspan="3" style="padding: 8px; text-align: right;"><strong>Subtotal:</strong></td>
-                <td style="padding: 8px; text-align: right;">$${(parseFloat(order.totalAmount) - parseFloat(order.shippingFee) + parseFloat(order.discountAmount) + parseFloat(order.loyaltyPointsUsed)).toFixed(2)}</td>
+                <td style="padding: 8px; text-align: right;">$${(parseFloat(order.totalAmount) - parseFloat(order.shippingFee) + parseFloat(order.discountAmount || 0) + parseFloat(order.loyaltyPointsUsed || 0)).toFixed(2)}</td>
               </tr>
               <tr>
                 <td colspan="3" style="padding: 8px; text-align: right;"><strong>Shipping:</strong></td>
                 <td style="padding: 8px; text-align: right;">$${parseFloat(order.shippingFee).toFixed(2)}</td>
               </tr>
-              ${parseFloat(order.discountAmount) > 0 ? `
+              ${parseFloat(order.discountAmount || 0) > 0 ? `
               <tr>
                 <td colspan="3" style="padding: 8px; text-align: right;"><strong>Discount:</strong></td>
                 <td style="padding: 8px; text-align: right;">-$${parseFloat(order.discountAmount).toFixed(2)}</td>
               </tr>
               ` : ''}
-              ${parseFloat(order.loyaltyPointsUsed) > 0 ? `
+              ${parseFloat(order.loyaltyPointsUsed || 0) > 0 ? `
               <tr>
                 <td colspan="3" style="padding: 8px; text-align: right;"><strong>Loyalty Points:</strong></td>
                 <td style="padding: 8px; text-align: right;">-$${parseFloat(order.loyaltyPointsUsed).toFixed(2)}</td>
@@ -90,7 +106,7 @@ exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
                 <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold; font-size: 16px;">Total:</td>
                 <td style="padding: 8px; text-align: right; font-weight: bold; font-size: 16px;">$${parseFloat(order.totalAmount).toFixed(2)}</td>
               </tr>
-              ${parseFloat(order.loyaltyPointsEarned) > 0 ? `
+              ${parseFloat(order.loyaltyPointsEarned || 0) > 0 ? `
               <tr>
                 <td colspan="3" style="padding: 8px; text-align: right;"><strong>Loyalty Points Earned:</strong></td>
                 <td style="padding: 8px; text-align: right;">$${parseFloat(order.loyaltyPointsEarned).toFixed(2)}</td>
@@ -102,12 +118,16 @@ exports.sendOrderConfirmationEmail = async (to, order, orderItems) => {
           <h3 style="color: #0a1d37;">Shipping Information</h3>
           <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
             <p><strong>Name:</strong> ${order.shippingAddress.name}</p>
-            <p><strong>Address:</strong> ${order.shippingAddress.address}</p>
+            <p><strong>Address:</strong> ${order.shippingAddress.addressLine1}</p>
+            ${order.shippingAddress.addressLine2 ? `<p><strong>Address 2:</strong> ${order.shippingAddress.addressLine2}</p>` : ''}
             <p><strong>City:</strong> ${order.shippingAddress.city}</p>
+            <p><strong>State:</strong> ${order.shippingAddress.state || ''}</p>
             <p><strong>Country:</strong> ${order.shippingAddress.country}</p>
             <p><strong>Postal Code:</strong> ${order.shippingAddress.postalCode}</p>
             <p><strong>Phone:</strong> ${order.shippingAddress.phone}</p>
           </div>
+          
+          ${accountInfoSection}
           
           <p style="margin-top: 30px;">If you have any questions about your order, please contact our customer service.</p>
           <p>Thank you for shopping with us!</p>

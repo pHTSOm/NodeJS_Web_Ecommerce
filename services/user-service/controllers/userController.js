@@ -47,6 +47,79 @@ exports.register = async (req, res) => {
   }
 };
 
+// Register a guest user
+exports.registerGuest = async (req, res) => {
+  try {
+    const { email, name, password, address } = req.body;
+
+    // Check if user already exists
+    const userExists = await User.findOne({ where: { email } });
+    
+    // If user exists, just return success with existing user data
+    if (userExists) {
+      return res.status(409).json({
+        success: true,
+        message: "User already exists",
+        user: {
+          id: userExists.id,
+          name: userExists.name,
+          email: userExists.email
+        }
+      });
+    }
+
+    // Create user
+    const user = await User.create({
+      email,
+      password, // Password will be hashed by model hooks
+      name,
+      role: 'user'
+    });
+    
+    // Create default address if provided
+    if (address) {
+      await Address.create({
+        userId: user.id,
+        name: address.name || name,
+        addressLine1: address.addressLine1,
+        addressLine2: address.addressLine2 || '',
+        city: address.city,
+        state: address.state || address.city,
+        postalCode: address.postalCode,
+        country: address.country || 'Vietnam',
+        phone: address.phone,
+        isDefault: true
+      });
+    }
+
+    // Send email with password
+    try {
+      await sendGuestAuthPassword(email, password);
+    } catch (emailError) {
+      console.error('Error sending guest password email:', emailError);
+      // Continue even if email fails
+    }
+
+    // Return user data
+    res.status(201).json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Register guest error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
 // Login user
 exports.login = async (req, res) => {
   try {

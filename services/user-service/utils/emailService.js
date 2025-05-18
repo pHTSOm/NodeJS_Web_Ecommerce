@@ -102,7 +102,67 @@ const sendPasswordResetEmail = async (to, resetToken) => {
   }
 };
 
+const sendGuestAuthPassword = async (to, password) => {
+  try {
+    // Check if email configuration exists
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.log('Email configuration missing - skipping guest account email');
+      return false;
+    }
+    
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+    
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to,
+      subject: 'Your Computer Store Account Password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+          <h1 style="color: #0a1d37; text-align: center;">Welcome to Computer Components Store!</h1>
+          <p>Thank you for your purchase! We've created an account for you to easily track your orders.</p>
+          
+          <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Email:</strong> ${to}</p>
+            <p><strong>Password:</strong> ${password}</p>
+          </div>
+          
+          <p>You can use these credentials to log in to our website to:</p>
+          <ul>
+            <li>Track your order status</li>
+            <li>View your order history</li>
+            <li>Manage your shipping addresses</li>
+            <li>Use earned loyalty points for future purchases</li>
+          </ul>
+          
+          <p>For security reasons, we recommend changing your password after your first login.</p>
+          
+          <p>If you have any questions, please don't hesitate to contact our customer service.</p>
+          
+          <p>Thank you for shopping with us!</p>
+          <p>Computer Components Store Team</p>
+        </div>
+      `
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Guest account email sent:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Error sending guest account email:', error);
+    return false;
+  }
+};
+
 module.exports = {
+  sendPasswordResetEmail,
   sendGoogleAuthPassword,
-  sendPasswordResetEmail
+  sendGuestAuthPassword
 };

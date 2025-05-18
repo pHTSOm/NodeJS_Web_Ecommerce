@@ -7,6 +7,7 @@ const userController = require('../controllers/userController');
 // Regular login/register routes
 router.post('/register', userController.register);
 router.post('/login', userController.login);
+router.post('/register-guest', userController.registerGuest);
 
 // Password reset routes
 router.post('/forgot-password', userController.forgotPassword);

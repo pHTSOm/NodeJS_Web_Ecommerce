@@ -58,6 +58,10 @@ const Order = sequelize.define('Order', {
   trackingNumber: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  guestAccountCreated: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 });
 

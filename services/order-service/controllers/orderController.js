@@ -1,11 +1,70 @@
-const { sequelize } = require("../config/db");
-const Order = require("../models/Order");
-const OrderItem = require("../models/OrderItem");
-const OrderStatus = require("../models/OrderStatus");
-const { Op } = require("sequelize");
-const { calculateLoyaltyPoints } = require("../utils/loyaltyPoints");
-const { sendOrderConfirmationEmail } = require("../utils/emailService");
-const axios = require("axios");
+const { sequelize } = require('../config/db');
+const Order = require('../models/Order');
+const OrderItem = require('../models/OrderItem');
+const OrderStatus = require('../models/OrderStatus');
+const { Op } = require('sequelize'); 
+const { calculateLoyaltyPoints } = require('../utils/loyaltyPoints');
+const { sendOrderConfirmationEmail } = require('../utils/emailService');
+const axios = require('axios');
+
+// Helper function to create a guest account
+async function createGuestAccount(name, email, shippingAddress) {
+  try {
+    console.log('Creating guest account for:', email);
+    
+    // Generate a secure random password
+    const password = Math.random().toString(36).slice(2, 10) + 
+                     Math.random().toString(36).slice(2, 10);
+    
+    // Create user account via user service
+    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+    const userData = {
+      name,
+      email,
+      password,
+      address: {
+        name: shippingAddress.name,
+        addressLine1: shippingAddress.addressLine1,
+        addressLine2: shippingAddress.addressLine2 || '',
+        city: shippingAddress.city,
+        state: shippingAddress.state || '',
+        postalCode: shippingAddress.postalCode,
+        country: shippingAddress.country || 'Vietnam',
+        phone: shippingAddress.phone,
+        isDefault: true
+      }
+    };
+    
+    const response = await axios.post(
+      `${userServiceUrl}/api/auth/register-guest`,
+      userData,
+      { timeout: 5000 }
+    );
+    
+    if (response.data && response.data.success) {
+      console.log('Guest account created successfully:', response.data.user.id);
+      return {
+        id: response.data.user.id,
+        createdPassword: password
+      };
+    } else {
+      throw new Error('Failed to create guest account');
+    }
+  } catch (error) {
+    console.error('Error creating guest account:', error.message);
+    
+    // Check if user already exists
+    if (error.response && error.response.status === 409) {
+      console.log('Guest account already exists, returning existing user ID');
+      return {
+        id: error.response.data.user.id,
+        alreadyExists: true
+      };
+    }
+    
+    throw error;
+  }
+}
 
 exports.createOrder = async (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -42,8 +101,38 @@ exports.createOrder = async (req, res) => {
     }
 
     // Get user ID from authentication middleware (null for guest)
-    const userId = req.userId;
-
+    let userId = req.userId;
+    let accountCreated = false;
+    
+    // If user is not logged in, create guest account
+    if (!userId) {
+      try {
+        console.log('Guest checkout detected - creating account');
+        const guestAccount = await createGuestAccount(
+          shipping.name,
+          shipping.email,
+          {
+            name: shipping.name,
+            addressLine1: shipping.address,
+            addressLine2: shipping.addressLine2 || '',
+            city: shipping.city,
+            state: shipping.state || shipping.city,
+            postalCode: shipping.postalCode,
+            country: shipping.country || 'Vietnam',
+            phone: shipping.phone
+          }
+        );
+        
+        userId = guestAccount.id;
+        accountCreated = !guestAccount.alreadyExists;
+        console.log(`Using user ID: ${userId} for order (Account ${accountCreated ? 'created' : 'already existed'})`);
+      } catch (guestError) {
+        console.error('Error creating/finding guest account:', guestError);
+        // Continue with guest checkout without user account
+        console.log('Continuing with guest checkout without account');
+      }
+    }
+    
     // Calculate order totals
     let subtotal = 0;
     for (const item of items) {
@@ -209,27 +298,34 @@ exports.createOrder = async (req, res) => {
 
       // Try to send confirmation email (don't block order creation if email fails)
       try {
-        sendOrderConfirmationEmail(shipping.email, order, orderItems).catch(
-          (emailError) => {
-            console.error("Error sending confirmation email:", emailError);
-          }
-        );
+        // Modify the email function to include account creation info if applicable
+        const emailOptions = {
+          includeAccountInfo: accountCreated,
+          email: shipping.email
+        };
+        
+        sendOrderConfirmationEmail(shipping.email, order, orderItems, emailOptions).catch(emailError => {
+          console.error('Error sending confirmation email:', emailError);
+        });
       } catch (emailError) {
         console.error("Error initiating email send:", emailError);
       }
 
       // Log the response that will be sent
-      console.log("=============================================");
-      console.log("ORDER CREATED SUCCESSFULLY");
-      console.log("Order ID:", order.id);
-      console.log("Response being sent:", {
+      console.log('=============================================');
+      console.log('ORDER CREATED SUCCESSFULLY');
+      console.log('Order ID:', order.id);
+      console.log('User ID:', userId);
+      console.log('Account created:', accountCreated);
+      console.log('Response being sent:', {
         success: true,
         order: {
           id: order.id,
           totalAmount: totalAmount,
-          status: "pending",
+          status: 'pending',
           createdAt: order.createdAt,
-        },
+          accountCreated: accountCreated
+        }
       });
       console.log("=============================================");
 
@@ -240,9 +336,10 @@ exports.createOrder = async (req, res) => {
         order: {
           id: order.id,
           totalAmount: totalAmount,
-          status: "pending",
+          status: 'pending',
           createdAt: order.createdAt,
-        },
+          accountCreated: accountCreated
+        }
       });
     } catch (dbError) {
       console.error("Database error creating order:", dbError);
