@@ -116,7 +116,10 @@ exports.logoutAllDevices = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ["password"] },
+      attributes: { 
+        include: ["loyaltyPoints"],
+        exclude: ["password"] 
+      },
     });
 
     res.json({
@@ -596,5 +599,36 @@ exports.resetPassword = async (req, res) => {
       success: false,
       message: "Server error",
     });
+  }
+};
+
+// Update loyalty points
+exports.updateLoyaltyPoints = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { points } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    user.loyaltyPoints = parseFloat(user.loyaltyPoints || 0) + points;
+    await user.save();
+
+    res.json({ success: true, loyaltyPoints: user.loyaltyPoints });
+  } catch (error) {
+    console.error("Loyalty update error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error('Get user error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
