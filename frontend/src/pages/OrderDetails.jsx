@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Container, Row, Col, Table, Card, CardBody, CardHeader, Badge, Spinner } from 'reactstrap';
-import { OrderService } from '../services/api';
-import CommonSection from '../components/UI/CommonSection';
-import Helmet from '../components/Helmet/Helmet';
-import '../styles/profile.css';
+import React, { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import {
+  Container,
+  Row,
+  Col,
+  Table,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  Spinner,
+} from "reactstrap";
+import { OrderService } from "../services/api";
+import CommonSection from "../components/UI/CommonSection";
+import Helmet from "../components/Helmet/Helmet";
+import "../styles/profile.css";
 
 const OrderDetails = () => {
   const { orderId } = useParams();
@@ -24,18 +34,20 @@ const OrderDetails = () => {
     setError(null);
 
     try {
-      console.log('Fetching order details for order ID:', orderId);
+      console.log("Fetching order details for order ID:", orderId);
       const response = await OrderService.getOrderDetails(orderId);
-      console.log('Order details response:', response);
+      console.log("Order details response:", response);
 
       if (response.success && response.order) {
         setOrder(response.order);
       } else {
-        setError('Failed to load order details');
+        setError("Failed to load order details");
       }
     } catch (error) {
-      console.error('Error fetching order details:', error);
-      setError('Error loading order details: ' + (error.message || 'Unknown error'));
+      console.error("Error fetching order details:", error);
+      setError(
+        "Error loading order details: " + (error.message || "Unknown error")
+      );
     } finally {
       setLoading(false);
     }
@@ -43,23 +55,26 @@ const OrderDetails = () => {
 
   const fetchOrderStatusHistory = async () => {
     setHistoryLoading(true);
-    
+
     try {
-      console.log('Fetching order status history for order ID:', orderId);
+      console.log("Fetching order status history for order ID:", orderId);
       const response = await OrderService.getOrderStatusHistory(orderId);
-      console.log('Status history response:', response);
-      
+      console.log("Status history response:", response);
+
       if (response.success && response.statusHistory) {
         setStatusHistory(response.statusHistory);
-      } else if (response.OrderStatuses && Array.isArray(response.OrderStatuses)) {
+      } else if (
+        response.OrderStatuses &&
+        Array.isArray(response.OrderStatuses)
+      ) {
         // Alternative format
         setStatusHistory(response.OrderStatuses);
       } else {
-        console.log('No status history available');
+        console.log("No status history available");
         setStatusHistory([]);
       }
     } catch (error) {
-      console.error('Error fetching order status history:', error);
+      console.error("Error fetching order status history:", error);
       setStatusHistory([]);
     } finally {
       setHistoryLoading(false);
@@ -68,49 +83,60 @@ const OrderDetails = () => {
 
   // Format date
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
+    if (!dateString) return "N/A";
+
     const options = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
   // Format price
   const formatPrice = (price) => {
-    if (!price) return '0.00';
+    if (!price) return "0.00";
     return parseFloat(price).toFixed(2);
   };
+
+  // === Grand total breakdown ===
+  const subtotal = order?.OrderItems?.reduce(
+    (acc, item) => acc + parseFloat(item.totalPrice || 0),
+    0
+  );
+  const discountAmount = 0
+  const loyaltyPointsDiscount = parseFloat(order?.loyaltyPointsUsed || 0) / 100;
+  const shippingFee = parseFloat(order?.shippingFee || 0);
+  const grandTotal =
+    subtotal + shippingFee - discountAmount - loyaltyPointsDiscount;
 
   // Get status badge color
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case 'pending':
-        return 'warning';
-      case 'confirmed':
-        return 'info';
-      case 'shipped':
-        return 'primary';
-      case 'delivered':
-        return 'success';
-      case 'cancelled':
-        return 'danger';
+      case "pending":
+        return "warning";
+      case "confirmed":
+        return "info";
+      case "shipped":
+        return "primary";
+      case "delivered":
+        return "success";
+      case "cancelled":
+        return "danger";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   // Get payment method display name
   const getPaymentMethodName = (method) => {
     switch (method) {
-      case 'cod':
-        return 'Cash on Delivery';
-      case 'card':
-        return 'Credit/Debit Card';
+      case "cod":
+        return "Cash on Delivery";
+      case "card":
+        return "Credit/Debit Card";
       default:
         return method;
     }
@@ -119,14 +145,14 @@ const OrderDetails = () => {
   // Get payment status badge color
   const getPaymentStatusColor = (status) => {
     switch (status) {
-      case 'paid':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'failed':
-        return 'danger';
+      case "paid":
+        return "success";
+      case "pending":
+        return "warning";
+      case "failed":
+        return "danger";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
@@ -153,7 +179,9 @@ const OrderDetails = () => {
           ) : !order ? (
             <div className="text-center py-5">
               <h4>Order not found</h4>
-              <p className="text-muted">The requested order could not be found.</p>
+              <p className="text-muted">
+                The requested order could not be found.
+              </p>
               <Link to="/orders" className="btn btn-primary mt-3">
                 Back to Orders
               </Link>
@@ -166,7 +194,10 @@ const OrderDetails = () => {
                   <CardHeader className="bg-white">
                     <div className="d-flex justify-content-between align-items-center">
                       <h4 className="mb-0">Order Summary</h4>
-                      <Badge color={getStatusBadgeColor(order.status)} className="px-3 py-2">
+                      <Badge
+                        color={getStatusBadgeColor(order.status)}
+                        className="px-3 py-2"
+                      >
                         {order.status.toUpperCase()}
                       </Badge>
                     </div>
@@ -175,17 +206,21 @@ const OrderDetails = () => {
                     <Row className="mb-4">
                       <Col md="6">
                         <p className="mb-1">
-                          <strong>Order Date:</strong> {formatDate(order.createdAt)}
+                          <strong>Order Date:</strong>{" "}
+                          {formatDate(order.createdAt)}
                         </p>
                         <p className="mb-1">
                           <strong>Order ID:</strong> #{order.id}
                         </p>
                         <p className="mb-1">
-                          <strong>Payment Method:</strong> {getPaymentMethodName(order.paymentMethod)}
+                          <strong>Payment Method:</strong>{" "}
+                          {getPaymentMethodName(order.paymentMethod)}
                         </p>
                         <p className="mb-1">
-                          <strong>Payment Status:</strong>{' '}
-                          <Badge color={getPaymentStatusColor(order.paymentStatus)}>
+                          <strong>Payment Status:</strong>{" "}
+                          <Badge
+                            color={getPaymentStatusColor(order.paymentStatus)}
+                          >
                             {order.paymentStatus}
                           </Badge>
                         </p>
@@ -201,12 +236,14 @@ const OrderDetails = () => {
                         )}
                         {parseFloat(order.loyaltyPointsEarned) > 0 && (
                           <p className="mb-1">
-                            <strong>Loyalty Points Earned:</strong> {formatPrice(order.loyaltyPointsEarned)}
+                            <strong>Loyalty Points Earned:</strong>{" "}
+                            {formatPrice(order.loyaltyPointsEarned)}
                           </p>
                         )}
-                        {parseFloat(order.loyaltyPointsUsed) > 0 && (
+                        {parseFloat(order.loyaltyPointsUsed || 0) > 0 && (
                           <p className="mb-1">
-                            <strong>Loyalty Points Used:</strong> {formatPrice(order.loyaltyPointsUsed)}
+                            <strong>Loyalty Points:</strong> - $
+                            {(order.loyaltyPointsUsed / 100).toFixed(2)}
                           </p>
                         )}
                       </Col>
@@ -225,46 +262,60 @@ const OrderDetails = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {order.OrderItems && order.OrderItems.map((item) => (
-                            <tr key={item.id}>
-                              <td>
-                                <div className="d-flex align-items-center">
-                                  {item.productData && item.productData.image && (
-                                    <img
-                                      src={
-                                        typeof item.productData.image === 'string' && item.productData.image.startsWith('[')
-                                          ? JSON.parse(item.productData.image)[0]
-                                          : item.productData.image
-                                      }
-                                      alt={item.productData?.name || 'Product'}
-                                      style={{
-                                        width: '50px',
-                                        height: '50px',
-                                        objectFit: 'contain',
-                                        marginRight: '10px',
-                                        border: '1px solid #eee',
-                                        borderRadius: '4px',
-                                      }}
-                                      onError={(e) => {
-                                        e.target.src = '/placeholder.png';
-                                      }}
-                                    />
-                                  )}
-                                  <div>
-                                    <p className="mb-0 fw-bold">{item.productData?.name || 'Product'}</p>
-                                    {item.productData?.variant && (
-                                      <small className="text-muted">
-                                        {item.productData.variant.name}
-                                      </small>
-                                    )}
+                          {order.OrderItems &&
+                            order.OrderItems.map((item) => (
+                              <tr key={item.id}>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    {item.productData &&
+                                      item.productData.image && (
+                                        <img
+                                          src={
+                                            typeof item.productData.image ===
+                                              "string" &&
+                                            item.productData.image.startsWith(
+                                              "["
+                                            )
+                                              ? JSON.parse(
+                                                  item.productData.image
+                                                )[0]
+                                              : item.productData.image
+                                          }
+                                          alt={
+                                            item.productData?.name || "Product"
+                                          }
+                                          style={{
+                                            width: "50px",
+                                            height: "50px",
+                                            objectFit: "contain",
+                                            marginRight: "10px",
+                                            border: "1px solid #eee",
+                                            borderRadius: "4px",
+                                          }}
+                                          onError={(e) => {
+                                            e.target.src = "/placeholder.png";
+                                          }}
+                                        />
+                                      )}
+                                    <div>
+                                      <p className="mb-0 fw-bold">
+                                        {item.productData?.name || "Product"}
+                                      </p>
+                                      {item.productData?.variant && (
+                                        <small className="text-muted">
+                                          {item.productData.variant.name}
+                                        </small>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td>${formatPrice(item.price)}</td>
-                              <td>{item.quantity}</td>
-                              <td className="text-end">${formatPrice(item.totalPrice)}</td>
-                            </tr>
-                          ))}
+                                </td>
+                                <td>${formatPrice(item.price)}</td>
+                                <td>{item.quantity}</td>
+                                <td className="text-end">
+                                  ${formatPrice(item.totalPrice)}
+                                </td>
+                              </tr>
+                            ))}
                         </tbody>
                         <tfoot className="bg-light">
                           <tr>
@@ -272,39 +323,44 @@ const OrderDetails = () => {
                               <strong>Subtotal:</strong>
                             </td>
                             <td className="text-end">
-                              ${formatPrice(
-                                parseFloat(order.totalAmount) - parseFloat(order.shippingFee || 0) + 
-                                parseFloat(order.discountAmount || 0) + parseFloat(order.loyaltyPointsUsed || 0)
-                              )}
+                              ${formatPrice(subtotal)}
                             </td>
                           </tr>
                           <tr>
                             <td colSpan="3" className="text-end">
                               <strong>Shipping Fee:</strong>
                             </td>
-                            <td className="text-end">${formatPrice(order.shippingFee || 0)}</td>
+                            <td className="text-end">
+                              ${formatPrice(shippingFee)}
+                            </td>
                           </tr>
-                          {parseFloat(order.discountAmount || 0) > 0 && (
+                          {discountAmount > 0 && (
                             <tr>
                               <td colSpan="3" className="text-end">
                                 <strong>Discount:</strong>
                               </td>
-                              <td className="text-end">-${formatPrice(order.discountAmount)}</td>
+                              <td className="text-end">
+                                $0
+                              </td>
                             </tr>
                           )}
-                          {parseFloat(order.loyaltyPointsUsed || 0) > 0 && (
+                          {loyaltyPointsDiscount > 0 && (
                             <tr>
                               <td colSpan="3" className="text-end">
                                 <strong>Loyalty Points:</strong>
                               </td>
-                              <td className="text-end">-${formatPrice(order.loyaltyPointsUsed)}</td>
+                              <td className="text-end">
+                                -${formatPrice(loyaltyPointsDiscount)}
+                              </td>
                             </tr>
                           )}
                           <tr>
                             <td colSpan="3" className="text-end">
                               <strong>Total:</strong>
                             </td>
-                            <td className="text-end fw-bold h5 mb-0">${formatPrice(order.totalAmount)}</td>
+                            <td className="text-end fw-bold h5 mb-0">
+                              ${formatPrice(grandTotal)}
+                            </td>
                           </tr>
                         </tfoot>
                       </Table>
@@ -323,20 +379,30 @@ const OrderDetails = () => {
                   <CardBody>
                     {order.shippingAddress && (
                       <div>
-                        <p className="mb-1"><strong>Name:</strong> {order.shippingAddress.name}</p>
+                        <p className="mb-1">
+                          <strong>Name:</strong> {order.shippingAddress.name}
+                        </p>
                         <p className="mb-1">
                           <strong>Address:</strong>{" "}
                           {order.shippingAddress.addressLine1}
                         </p>
                         {order.shippingAddress.addressLine2 && (
-                          <p className="mb-1">{order.shippingAddress.addressLine2}</p>
+                          <p className="mb-1">
+                            {order.shippingAddress.addressLine2}
+                          </p>
                         )}
                         <p className="mb-1">
-                          {order.shippingAddress.city}, {order.shippingAddress.state},
+                          {order.shippingAddress.city},{" "}
+                          {order.shippingAddress.state},
                           {order.shippingAddress.postalCode}
                         </p>
-                        <p className="mb-1"><strong>Country:</strong> {order.shippingAddress.country}</p>
-                        <p className="mb-0"><strong>Phone:</strong> {order.shippingAddress.phone}</p>
+                        <p className="mb-1">
+                          <strong>Country:</strong>{" "}
+                          {order.shippingAddress.country}
+                        </p>
+                        <p className="mb-0">
+                          <strong>Phone:</strong> {order.shippingAddress.phone}
+                        </p>
                       </div>
                     )}
                   </CardBody>
@@ -351,32 +417,39 @@ const OrderDetails = () => {
                     {historyLoading ? (
                       <div className="text-center py-3">
                         <Spinner size="sm" color="primary" />
-                        <p className="mb-0 mt-2 small">Loading status history...</p>
+                        <p className="mb-0 mt-2 small">
+                          Loading status history...
+                        </p>
                       </div>
                     ) : statusHistory && statusHistory.length > 0 ? (
                       <div className="status-timeline">
                         {statusHistory.map((status, index) => (
-                          <div key={status.id || index} className="status-item position-relative mb-4">
+                          <div
+                            key={status.id || index}
+                            className="status-item position-relative mb-4"
+                          >
                             <div className="d-flex">
                               <div className="status-indicator me-3">
-                                <div 
-                                  className={`status-dot bg-${getStatusBadgeColor(status.status)}`}
+                                <div
+                                  className={`status-dot bg-${getStatusBadgeColor(
+                                    status.status
+                                  )}`}
                                   style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    borderRadius: '50%',
-                                    marginTop: '4px'
+                                    width: "16px",
+                                    height: "16px",
+                                    borderRadius: "50%",
+                                    marginTop: "4px",
                                   }}
                                 ></div>
                                 {index < statusHistory.length - 1 && (
-                                  <div 
+                                  <div
                                     className="status-line"
                                     style={{
-                                      width: '2px',
-                                      height: '40px',
-                                      background: '#e9ecef',
-                                      marginLeft: '7px',
-                                      marginTop: '4px'
+                                      width: "2px",
+                                      height: "40px",
+                                      background: "#e9ecef",
+                                      marginLeft: "7px",
+                                      marginTop: "4px",
                                     }}
                                   ></div>
                                 )}
@@ -385,7 +458,9 @@ const OrderDetails = () => {
                                 <p className="mb-1 text-muted small">
                                   {formatDate(status.createdAt)}
                                 </p>
-                                {status.note && <p className="mb-0 small">{status.note}</p>}
+                                {status.note && (
+                                  <p className="mb-0 small">{status.note}</p>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -393,7 +468,9 @@ const OrderDetails = () => {
                       </div>
                     ) : (
                       <div className="text-center py-3">
-                        <p className="text-muted mb-0">No status updates available</p>
+                        <p className="text-muted mb-0">
+                          No status updates available
+                        </p>
                       </div>
                     )}
                   </CardBody>

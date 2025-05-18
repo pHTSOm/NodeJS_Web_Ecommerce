@@ -28,6 +28,10 @@ const User = sequelize.define('User', {
   role: {
     type: DataTypes.ENUM('admin', 'user'),
     defaultValue: 'user'
+  },
+  loyaltyPoints: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
   }
 }, {
   hooks: {

@@ -21,6 +21,9 @@ router.get("/addresses", protect, userController.getAddresses);
 router.put("/addresses/:id", protect, userController.updateAddress);
 router.delete("/addresses/:id", protect, userController.deleteAddress);
 
+router.get('/:id', protect, userController.getUserById); 
+router.put("/:id/loyalty", protect, userController.updateLoyaltyPoints);
+
 // Admin routes for user management
 router.get("/users", protect, adminOnly, userController.getAllUsers);
 router.put("/users/:id", protect, adminOnly, userController.updateUser);
