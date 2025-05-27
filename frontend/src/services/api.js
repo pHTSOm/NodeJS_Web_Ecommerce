@@ -272,9 +272,13 @@ export const ProductService = {
     };
 
     console.log("Creating product with data:", Object.fromEntries(productData));
+    console.log("Auth token:", localStorage.getItem("token") ? "Present" : "Missing");
+    
+    // Make sure we're calling the correct endpoint
     const response = await API.post("/products", productData, config);
     return response.data;
   },
+
 
   updateProduct: async (id, productData) => {
     const config = {
