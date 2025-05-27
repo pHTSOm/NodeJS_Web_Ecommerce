@@ -480,14 +480,37 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
-
+// Updated userController.js - checkRole function
 exports.checkRole = async (req, res) => {
   try {
-    // User is already authenticated via protect middleware
-    // Just return the role
+    console.log(`checkRole called for user ID: ${req.user?.id}`);
+    
+    // Ensure we have a user ID from the protect middleware
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated"
+      });
+    }
+
+    // Fetch the user from database to get the most current role
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'role', 'email', 'name']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    console.log(`User role found: ${user.role} for user ID: ${user.id}`);
+    
     res.json({
       success: true,
-      role: req.user.role,
+      role: user.role,
+      userId: user.id
     });
   } catch (error) {
     console.error("Error checking role:", error);

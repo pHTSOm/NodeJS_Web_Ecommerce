@@ -4,6 +4,9 @@ const router = express.Router();
 const userController = require("../controllers/userController");
 const { protect, adminOnly } = require("../middleware/auth");
 
+// IMPORTANT: Put check-role BEFORE the /:id route to avoid conflicts
+router.get("/check-role", protect, userController.checkRole);
+
 // Auth routes
 router.post("/register", userController.register);
 router.post("/login", userController.login);
@@ -21,6 +24,7 @@ router.get("/addresses", protect, userController.getAddresses);
 router.put("/addresses/:id", protect, userController.updateAddress);
 router.delete("/addresses/:id", protect, userController.deleteAddress);
 
+// Individual user routes (PUT THIS AFTER check-role)
 router.get('/:id', protect, userController.getUserById); 
 router.put("/:id/loyalty", protect, userController.updateLoyaltyPoints);
 
@@ -29,5 +33,4 @@ router.get("/users", protect, adminOnly, userController.getAllUsers);
 router.put("/users/:id", protect, adminOnly, userController.updateUser);
 router.delete("/users/:id", protect, adminOnly, userController.deleteUser);
 
-router.get("/check-role", protect, userController.checkRole);
 module.exports = router;
