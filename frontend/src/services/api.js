@@ -450,7 +450,7 @@ export const OrderService = {
   }
 };
 
-// Admin Service for additional admin functionality
+//Admin Func
 export const AdminService = {
   // Order management
   getAllOrders: async (params = {}) => {
@@ -483,19 +483,19 @@ export const AdminService = {
     return response.data;
   },
   
-  // User management 
+  // User management - FIXED: Using admin-specific routes
   getAllUsers: async () => {
-    const response = await API.get("/users/users");
+    const response = await API.get("/users/admin/all");
     return response.data;
   },
   
   updateUser: async (id, userData) => {
-    const response = await API.put(`/users/users/${id}`, userData);
+    const response = await API.put(`/users/admin/${id}`, userData);
     return response.data;
   },
   
   deleteUser: async (id) => {
-    const response = await API.delete(`/users/users/${id}`);
+    const response = await API.delete(`/users/admin/${id}`);
     return response.data;
   },
   

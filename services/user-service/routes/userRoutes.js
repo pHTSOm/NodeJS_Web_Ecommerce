@@ -28,9 +28,9 @@ router.delete("/addresses/:id", protect, userController.deleteAddress);
 router.get('/:id', protect, userController.getUserById); 
 router.put("/:id/loyalty", protect, userController.updateLoyaltyPoints);
 
-// Admin routes for user management
-router.get("/users", protect, adminOnly, userController.getAllUsers);
-router.put("/users/:id", protect, adminOnly, userController.updateUser);
-router.delete("/users/:id", protect, adminOnly, userController.deleteUser);
+// Admin routes for user management - FIXED: Changed route paths
+router.get("/admin/all", protect, adminOnly, userController.getAllUsers);
+router.put("/admin/:id", protect, adminOnly, userController.updateUser);
+router.delete("/admin/:id", protect, adminOnly, userController.deleteUser);
 
 module.exports = router;
